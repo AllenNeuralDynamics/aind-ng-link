@@ -3,8 +3,8 @@ requires = ["setuptools", "setuptools-scm"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "hello_world"
-description = "Prints messages to stdout. Simple boilerplate for libraries."
+name = "aind-ng-link"
+description = "Python package for the generation of neuroglancer links"
 license = {text = "MIT"}
 requires-python = ">=3.7"
 classifiers = [
@@ -13,8 +13,9 @@ classifiers = [
 dynamic = ["version", "readme"]
 
 dependencies = [
-    'pandas',
-    'sphinx'
+  'pandas',
+  'sphinx',
+  'pint'
 ]
 
 [project.optional-dependencies]
@@ -32,7 +33,7 @@ dev = [
 where = ["src"]
 
 [tool.setuptools.dynamic]
-version = {attr = "hello_world.__version__"}
+version = {attr = "ng_link.__version__"}
 readme = {file = ["README.md"]}
 
 [tool.black]
@@ -58,7 +59,7 @@ exclude = '''
 
 [tool.coverage.run]
 omit = ["*__init__*"]
-source = ["hello_world", "tests"]
+source = ["ng_link", "tests", "utils"]
 
 [tool.coverage.report]
 exclude_lines = ["if __name__ == .__main__.:"]
