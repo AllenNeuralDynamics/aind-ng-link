@@ -69,7 +69,7 @@ class NgState():
         
         return output_json
     
-    def __unpack_axis(self, axis_values:dict, dest_metric:Optional[str]='meters') -> List:
+    def __unpack_axis(self, axis_values:dict, dest_measure:Optional[str]='meters') -> List:
         """
         Unpack axis voxel sizes converting them to meters which neuroglancer uses by default.
         
@@ -82,32 +82,32 @@ class NgState():
                 "unit": 'microns'
             }
         
-        dest_metric: Optional[str]
-            Destination metric to be used in neuroglancer. Default 'meters'.
+        dest_measure: Optional[str]
+            Destination measure to be used in neuroglancer. Default 'meters'.
         
         Returns
         ------------------------
         List
-            List with two values, the converted quantity and it's metric in neuroglancer format.
+            List with two values, the converted quantity and it's measure in neuroglancer format.
         """
         
-        if dest_metric not in ['meters', 'seconds']:
-            raise NotImplementedError(f"{dest_metric} has not been implemented")
+        if dest_measure not in ['meters', 'seconds']:
+            raise NotImplementedError(f"{dest_measure} has not been implemented")
         
-        # Converting to desired metric
+        # Converting to desired measure
         unit_register = UnitRegistry()
         quantity = axis_values['voxel_size'] * unit_register[axis_values['unit']]    
-        dest_quantity = quantity.to(dest_metric)
+        dest_quantity = quantity.to(dest_measure)
         
-        # Neuroglancer metric
-        neuroglancer_metric = None
-        if dest_metric == 'meters':
-            neuroglancer_metric = 'm'
+        # Neuroglancer measure
+        neuroglancer_measure = None
+        if dest_measure == 'meters':
+            neuroglancer_measure = 'm'
         
-        elif dest_metric == 'seconds':
-            neuroglancer_metric = 's'
+        elif dest_measure == 'seconds':
+            neuroglancer_measure = 's'
         
-        return [dest_quantity.m, neuroglancer_metric]
+        return [dest_quantity.m, neuroglancer_measure]
     
     def set_dimensions(self, dimensions:dict) -> None:
         
