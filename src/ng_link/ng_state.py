@@ -1,5 +1,5 @@
 from typing import List, Any, Optional, Union
-from ng_layer import NgLayer
+from .ng_layer import NgLayer
 from pint import UnitRegistry
 from pathlib import Path
 import sys
