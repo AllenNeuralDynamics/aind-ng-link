@@ -1,18 +1,24 @@
 from typing import List, Any, Optional, Union
-from .ng_layer import NgLayer
+from ng_layer import NgLayer
 from pint import UnitRegistry
 from pathlib import Path
 import sys
 import re
-
-sys.path.append('../')
 from utils import utils
 
 # IO types
 PathLike = Union[str, Path]
 
 class NgState():
-    def __init__(self, input_config:dict, output_json:PathLike, verbose:Optional[bool]=False) -> None:
+    def __init__(
+        self, 
+        input_config:dict, 
+        output_json:Optional[PathLike], 
+        verbose:Optional[bool]=False,
+        mount_service:Optional[str]="s3",
+        base_url:Optional[str]='https://neuroglancer-demo.appspot.com/',
+        json_name:Optional[str]='process_output.json'
+    ) -> None:
         """
         Class constructor
         
@@ -30,13 +36,14 @@ class NgState():
         self.input_config = input_config
         self.output_json = Path(self.__fix_output_json_path(output_json))
         self.verbose = verbose
+        self.mount_service = mount_service
+        self.base_url = base_url
+        self.json_name = json_name
         
         # State and layers attributes
         self.__state = {}
-        self.dimensions = {}
+        self.__dimensions = {}
         self.__layers = []
-        
-        self.__prefix = 'ng_link_'
         
         # Initialize principal attributes
         self.initialize_attributes(self.input_config)
@@ -56,20 +63,17 @@ class NgState():
         str
             String with the fixed outputh path.
         """
-        output_json = Path(output_json)
-        name = str(output_json.name)
-        
-        if not name.endswith('.json'):
-            name += '.json'
-            
-        if not name.startswith('ng_link_'):
-            name = 'ng_link_' + name
-        
-        output_json = output_json.parent.joinpath(name)
-        
+        output_json = Path(
+            str(output_json).replace(
+                '/home/jupyter/', ''
+            ).replace(
+                "////", "//"
+            )
+        )
+
         return output_json
     
-    def __unpack_axis(self, axis_values:dict, dest_measure:Optional[str]='meters') -> List:
+    def __unpack_axis(self, axis_values:dict, dest_metric:Optional[str]='meters') -> List:
         """
         Unpack axis voxel sizes converting them to meters which neuroglancer uses by default.
         
@@ -82,34 +86,47 @@ class NgState():
                 "unit": 'microns'
             }
         
-        dest_measure: Optional[str]
-            Destination measure to be used in neuroglancer. Default 'meters'.
+        dest_metric: Optional[str]
+            Destination metric to be used in neuroglancer. Default 'meters'.
         
         Returns
         ------------------------
         List
-            List with two values, the converted quantity and it's measure in neuroglancer format.
+            List with two values, the converted quantity and it's metric in neuroglancer format.
         """
         
-        if dest_measure not in ['meters', 'seconds']:
-            raise NotImplementedError(f"{dest_measure} has not been implemented")
+        if dest_metric not in ['meters', 'seconds']:
+            raise NotImplementedError(f"{dest_metric} has not been implemented")
         
-        # Converting to desired measure
+        # Converting to desired metric
         unit_register = UnitRegistry()
         quantity = axis_values['voxel_size'] * unit_register[axis_values['unit']]    
-        dest_quantity = quantity.to(dest_measure)
+        dest_quantity = quantity.to(dest_metric)
         
-        # Neuroglancer measure
-        neuroglancer_measure = None
-        if dest_measure == 'meters':
-            neuroglancer_measure = 'm'
+        # Neuroglancer metric
+        neuroglancer_metric = None
+        if dest_metric == 'meters':
+            neuroglancer_metric = 'm'
         
-        elif dest_measure == 'seconds':
-            neuroglancer_measure = 's'
+        elif dest_metric == 'seconds':
+            neuroglancer_metric = 's'
         
-        return [dest_quantity.m, neuroglancer_measure]
+        return [dest_quantity.m, neuroglancer_metric]
     
-    def set_dimensions(self, dimensions:dict) -> None:
+    @property
+    def dimensions(self) -> dict:
+        """
+        Property getter of dimensions.
+        
+        Returns
+        ------------------------
+        dict
+            Dictionary with neuroglancer dimensions' configuration.
+        """
+        return self.__dimensions
+    
+    @dimensions.setter
+    def dimensions(self, new_dimensions:dict) -> None:
         
         """
         Set dimensions with voxel sizes for the image.
@@ -125,18 +142,18 @@ class NgState():
             
         """
         
-        if not utils.check_type_helper(dimensions, dict):
-            raise ValueError(f"Dimensions accepts only dict. Received value: {dimensions}")
+        if not isinstance(new_dimensions, dict):
+            raise ValueError(f"Dimensions accepts only dict. Received value: {new_dimensions}")
 
         regex_axis = r'([x-zX-Z])$'
         
-        for axis, axis_values in dimensions.items():
+        for axis, axis_values in new_dimensions.items():
             
             if re.search(regex_axis, axis):
-                self.dimensions[axis] = self.__unpack_axis(axis_values)
+                self.__dimensions[axis] = self.__unpack_axis(axis_values)
             else:
-                self.dimensions[axis] = self.__unpack_axis(axis_values, 'seconds')
-                
+                self.__dimensions[axis] = self.__unpack_axis(axis_values, 'seconds')
+    
     @property
     def layers(self) -> List[dict]:
         """
@@ -149,7 +166,8 @@ class NgState():
         """
         return self.__layers
     
-    def set_layers(self, layers:List[dict]) -> None:
+    @layers.setter
+    def layers(self, layers:List[dict]) -> None:
         """
         Property setter of layers.
         
@@ -160,12 +178,53 @@ class NgState():
             
         """
         
-        if not utils.check_type_helper(layers, list):
+        if not isinstance(layers, list):
             raise ValueError(f"layers accepts only list. Received value: {layers}")
 
         for layer in layers:
-            self.__layers.append(NgLayer(layer).get_layer())
+            self.__layers.append(
+                NgLayer(
+                    image_config=layer,
+                    mount_service=self.mount_service
+                ).layer_state
+            )
+
+    @property
+    def state(self, new_state:dict) -> None:
+        """
+        Property setter of state.
         
+        Parameters
+        ------------------------
+        input_config: dict
+            Dictionary with the configuration for the neuroglancer state
+        
+        """
+        self.__state = dict(new_state)
+    
+    @state.getter
+    def state(self) -> dict:
+        """
+        Property getter of state.
+        
+        Returns
+        ------------------------
+        dict
+            Dictionary with the actual layer state.
+        """
+        
+        actual_state = {}
+        actual_state['ng_link'] = self.get_url_link()
+        actual_state['dimensions'] = {}
+
+        # Getting actual state for all attributes
+        for axis, value_list in self.__dimensions.items():
+            actual_state['dimensions'][axis] = value_list
+            
+        actual_state['layers'] = self.__layers
+        
+        return actual_state
+    
     def initialize_attributes(self, input_config:dict) -> None:
         """
         Initializes the following attributes for a given image layer: dimensions, layers.
@@ -178,37 +237,16 @@ class NgState():
         """
         
         # Initializing dimension
-        self.set_dimensions(input_config['dimensions'])
+        self.dimensions = input_config['dimensions']
         
         # Initializing layers
-        self.set_layers(input_config['layers'])
+        self.layers = input_config['layers']
         
-        self.__state = self.get_state()
-    
-    def get_state(self) -> dict:
-        """
-        Property getter of state.
-        
-        Returns
-        ------------------------
-        dict
-            Dictionary with the actual layer state.
-        """
-        
-        actual_state = {}
-        actual_state['dimensions'] = {}
-
-        # Getting actual state for all attributes
-        for axis, value_list in self.dimensions.items():
-            actual_state['dimensions'][axis] = value_list
-            
-        actual_state['layers'] = self.__layers
-        
-        return actual_state
+        # Initializing state
+        self.__state = self.state
     
     def save_state_as_json(
-        self, 
-        output_json:Optional[PathLike]='', 
+        self,
         update_state:Optional[bool]=False
     ) -> None:
         """
@@ -223,24 +261,15 @@ class NgState():
             Updates the neuroglancer state with dimensions and layers in case they were changed 
             using class methods.
         """
-        output_json = str(output_json)
-        
-        if not len(output_json):
-            output_json = self.output_json
-        else:
-            output_json = self.__fix_output_json_path(output_json)
-            self.output_json = output_json
         
         if update_state:
-            self.__state = self.state()
-    
-        utils.save_dict_as_json(output_json, self.__state, verbose=self.verbose)
+            self.__state = self.state
+
+        final_path = Path(self.output_json).joinpath(self.json_name)
+        utils.save_dict_as_json(final_path, self.__state, verbose=self.verbose)
     
     def get_url_link(
-        self, 
-        base_url:Optional[str]='https://neuroglancer-demo.appspot.com/',
-        save_txt:Optional[bool]=True,
-        output_txt:Optional[PathLike]=''
+        self
     ) -> str:
         """
         Creates the neuroglancer link based on where the json will be written.
@@ -254,28 +283,16 @@ class NgState():
             Saves the url link to visualize data as a .txt file in a specific path given by 
             output_txt parameter.
         
-        output_txt: Optional[PathLike]
-            Path where the .txt file will be written. Default: '' which then will be converted to 
-            self.output_json value.
-        
         Returns
         ------------------------
         str
             Neuroglancer url to visualize data.
         """
-        output_txt = str(output_txt)
         
-        json_path = str(self.output_json).replace('/home/jupyter/', '')
-        json_path = 'gs://' + json_path
+        json_path = str(self.output_json.joinpath(self.json_name))
+        json_path = f"{self.mount_service}://{json_path}"
         
-        link = f"{base_url}#!{json_path}"
-        
-        if save_txt:
-            
-            if not len(output_txt):
-                output_txt = self.output_json.parent
-            
-            utils.save_string_to_txt(link, Path(output_txt).joinpath('ng_link.txt'))
+        link = f"{self.base_url}#!{json_path}"
         
         return link
     
@@ -335,8 +352,8 @@ if __name__ == '__main__':
         ]
     }
     
-    neuroglancer_link = NgState(example_data, "path_to_json.json")
-    data = neuroglancer_link.get_state()
+    neuroglancer_link = NgState(example_data, "C:/Users/camilo.laiton/Documents/Presentations")
+    data = neuroglancer_link.state
     print(data)
     # neuroglancer_link.save_state_as_json('test.json')
     neuroglancer_link.save_state_as_json()

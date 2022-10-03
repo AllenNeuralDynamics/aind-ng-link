@@ -1,8 +1,6 @@
 from typing import Any, Optional, Union
 from pathlib import Path
 import sys
-
-sys.path.append('../')
 from utils import utils
 
 # IO types
@@ -10,7 +8,12 @@ PathLike = Union[str, Path]
 
 class NgLayer():
     
-    def __init__(self, image_config:dict, image_type:Optional[str]='image') -> None:
+    def __init__(
+        self, 
+        image_config:dict, 
+        image_type:Optional[str]='image',
+        mount_service:Optional[str]="s3",
+    ) -> None:
         """
         Class constructor
         
@@ -20,13 +23,19 @@ class NgLayer():
             Dictionary with the image configuration based on neuroglancer documentation.
         image_type: Optional[str]
             Image type based on neuroglancer documentation.
-            
+        mount_service: Optional[str]
+            This parameter could be 'gs' referring to a bucket in Google Cloud or 's3'in Amazon.
+        
         """
         
-        self.layer_state = {}
+        self.__layer_state = {}
         self.image_config = image_config
-        self.image_source = self.__fix_image_source(image_config['source'])
+        self.mount_service = mount_service
         self.image_type = image_type
+        
+        # Fix image source
+        self.image_source = self.__fix_image_source(image_config['source'])
+        
         
         self.update_state(image_config)
     
@@ -47,9 +56,14 @@ class NgLayer():
         
         source_path = str(source_path)
         
-        # replacing jupyter path
-        source_path = source_path.replace('/home/jupyter/', '')
-        source_path = 'gs://' + source_path
+        # replacing jupyter path or cloud run job path
+        source_path = source_path.replace(
+            '/home/jupyter/', ''
+        ).replace(
+            "////", "//"
+        )
+        
+        source_path = f"{self.mount_service}://{source_path}" 
         
         if source_path.endswith('.zarr'):
             source_path = "zarr://" + source_path
@@ -75,46 +89,42 @@ class NgLayer():
         
         
         if overwrite:
-            self.__set_image_channel(0)
-            self.__set_shader_control(
-                {
-                    "normalized": {
-                        "range": [0, 600]
-                    }
+            self.image_channel = 0
+            self.shader_control = {
+                "normalized": {
+                    "range": [0, 600]
                 }
-            )
-            self.__set_visible(True)
-            self.__set_str_state('name', Path(self.image_source).stem)
-            self.__set_str_state('type', self.image_type)
+            }
+            self.visible = True
+            self.__layer_state['name'] = str(Path(self.image_source).stem)
+            self.__layer_state['type'] = str(self.image_type)
         
         elif len(image_config):
             # Setting default image_config in json image layer
             if 'channel' not in image_config:
                 # Setting channel to 0 for image
-                self.__set_image_channel(0)
+                self.image_channel = 0
                 
             if 'shaderControls' not in image_config:
-                self.__set_shader_control(
-                    {
-                        "normalized": {
-                            "range": [0, 600]
-                        }
+                self.shader_control = {
+                    "normalized": {
+                        "range": [0, 600]
                     }
-                )
+                }
                 
             if 'visible' not in image_config:
-                self.__set_visible(True)
+                self.visible = True
                 
             if 'name' not in image_config:
                 try:
-                    channel = self.layer_state['localDimensions']["c'"][0]
+                    channel = self.__layer_state['localDimensions']["c'"][0]
                 
                 except KeyError:
                     channel = ''
-                self.__set_str_state('name', Path(self.image_source).stem + f"_{channel}")
+                self.__layer_state['name'] =  f"{Path(self.image_source).stem}_{channel}"
                 
             if 'type' not in image_config:
-                self.__set_str_state('type', self.image_type)
+                self.__layer_state['type'] = str(self.image_type)
     
     def update_state(self, image_config:dict) -> None:
         """
@@ -144,76 +154,21 @@ class NgLayer():
         
         for param, value in image_config.items():
             if param in ['type', 'source', 'name']:
-                self.__set_str_state(param, value)
+                self.__layer_state[param] = str(value)
                 
             if param in ['visible']:
-                self.__set_boolean_state(param, value)
-            
+                self.visible = value
+                
             if param == 'shader':
-                self.__set_shader(
-                    self.__create_shader(
-                        value
-                    )
-                )
+                self.shader = self.__create_shader(value)
                 
             if param == 'channel':
-                self.__set_image_channel(value)
+                self.image_channel = value
                 
             if param == 'shaderControls':
-                self.__set_shader_control(value)
+                self.shader_control = value
         
         self.set_default_values(image_config)
-    
-    def __set_str_state(self, param:str, value:str) -> None:
-        
-        """
-        Sets a string value for a state's parameter.
-        
-        Parameters
-        ------------------------
-        param: str
-            Key name for the parameter inside the layer state.
-        
-        value: str
-            Value for the layer state parameter
-            
-        Raises
-        ------------------------
-        ValueError:
-            If the provided parameter is not a string.
-            
-        """
-        
-        if param == 'source':
-            value = str(self.image_source)            
-        
-        if not utils.check_type_helper(value, str):
-            raise ValueError(f"{param} accepts only str. Received value: {value}")
-            
-        self.layer_state[param] = value
-    
-    def __set_boolean_state(self, param:str, value:bool) -> None:
-        """
-        Sets a boolean value for a state's parameter.
-        
-        Parameters
-        ------------------------
-        param: str
-            Key name for the parameter inside the layer state.
-        
-        value: bool
-            Value for the layer state parameter
-            
-        Raises
-        ------------------------
-        ValueError:
-            If the provided parameter is not a boolean.
-        """
-        
-        if not utils.check_type_helper(value, bool):
-            raise ValueError(f"{param} accepts only bool. Received value: {value}")
-            
-        self.layer_state[param] = value
     
     def __create_shader(self, shader_config:dict) -> str:
         """
@@ -250,8 +205,13 @@ class NgLayer():
         shader_string += emit_color
         
         return shader_string
-        
-    def __set_shader(self, shader_config:str) -> None:
+    
+    @property
+    def shader(self) -> str:
+        return self.__layer_state['shader']
+    
+    @shader.setter
+    def shader(self, shader_config:str) -> None:
         """
         Sets a configuration for the neuroglancer shader.
         
@@ -259,21 +219,21 @@ class NgLayer():
         ------------------------
         shader_config: str
             Shader configuration for neuroglancer in string format.
-        
+            e.g. #uicontrol vec3 color color(default=\"green\")\n#uicontrol invlerp normalized\nvoid main() {\n  emitRGB(color * normalized());\n}
         Raises
         ------------------------
         ValueError:
             If the provided shader_config is not a string.
         
         """
-        
-        # #uicontrol vec3 color color(default=\"green\")\n#uicontrol invlerp normalized\nvoid main() {\n  emitRGB(color * normalized());\n}
-        if not utils.check_type_helper(shader_config, str):
-            raise ValueError(f"Shader accepts only str. Received value: {value}")
-        
-        self.layer_state['shader'] = shader_config
-        
-    def __set_shader_control(self, shader_control_config:dict) -> None:
+        self.__layer_state['shader'] = str(shader_config)
+    
+    @property
+    def shader_control(self) -> dict:
+        return self.__layer_state['shaderControls']
+    
+    @shader_control.setter 
+    def shader_control(self, shader_control_config:dict) -> None:
         """
         Sets a configuration for the neuroglancer shader control.
         
@@ -288,13 +248,14 @@ class NgLayer():
             If the provided shader_control_config is not a dictionary.
         
         """
-        
-        if not utils.check_type_helper(shader_control_config, dict):
-            raise ValueError(f"Shader control accepts only dict. Received value: {value}")
-        
-        self.layer_state['shaderControls'] = shader_control_config 
+        self.__layer_state['shaderControls'] = dict(shader_control_config) 
     
-    def __set_image_channel(self, channel:int) -> None:
+    @property
+    def image_channel(self) -> None:
+        return self.__layer_state['localDimensions']['c']
+    
+    @image_channel.setter
+    def image_channel(self, channel:int) -> None:
         """
         Sets the image channel in case the file contains multiple channels.
         
@@ -309,18 +270,19 @@ class NgLayer():
             If the provided channel is not an integer.
         
         """
-        
-        if not utils.check_type_helper(channel, int):
-            raise ValueError(f"Channel accepts only integer. Received value: {value}")
-
-        self.layer_state['localDimensions'] = {
+        self.__layer_state['localDimensions'] = {
             "c'": [
-                channel + 1,
+                int(channel) + 1,
                 ""
             ]
         }
-        
-    def __set_visible(self, visible:bool) -> None:
+    
+    @property
+    def visible(self) -> bool:
+        return self.__layer_state['visible']
+    
+    @visible.setter
+    def visible(self, visible:bool) -> None:
         """
         Sets the visible parameter in neuroglancer link.
         
@@ -333,22 +295,22 @@ class NgLayer():
         ------------------------
         ValueError:
             If the parameter is not an boolean.
-        
         """
-        
-        if not utils.check_type_helper(visible, bool):
-            raise ValueError(f"Visible param accepts only boolean. Received value: {value}")
+        self.__layer_state['visible'] = bool(visible)
+    
+    @property
+    def layer_state(self) -> dict:
+        return self.__layer_state
 
-        self.layer_state['visible'] = visible
+    @layer_state.setter
+    def layer_state(self, new_layer_state:dict) -> None:
+        self.__layer_state = dict(new_layer_state)
         
-    def get_layer(self):
-        return self.layer_state
-
 if __name__ == '__main__':
     
     example_data = {
         'type': 'image', # Optional
-        'source': 'image_path',
+        'source': 'image_path.zarr',
         'channel': 1, # Optional
         # 'name': 'image_name', # Optional
         'shader': {
@@ -364,5 +326,5 @@ if __name__ == '__main__':
         'visible': False # Optional
     }
     
-    dict_data = NgLayer(image_config=example_data).get_layer()
+    dict_data = NgLayer(image_config=example_data).layer_state
     print(dict_data)
