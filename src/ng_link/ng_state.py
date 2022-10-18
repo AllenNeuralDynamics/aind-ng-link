@@ -4,7 +4,7 @@ from pint import UnitRegistry
 from pathlib import Path
 import sys
 import re
-from utils import utils
+from .utils import utils
 
 # IO types
 PathLike = Union[str, Path]
@@ -352,7 +352,7 @@ if __name__ == '__main__':
         ]
     }
     
-    neuroglancer_link = NgState(example_data, "C:/Users/camilo.laiton/Documents/Presentations")
+    neuroglancer_link = NgState(example_data, "")
     data = neuroglancer_link.state
     print(data)
     # neuroglancer_link.save_state_as_json('test.json')

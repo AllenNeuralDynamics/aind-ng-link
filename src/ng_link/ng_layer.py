@@ -1,7 +1,7 @@
 from typing import Any, Optional, Union
 from pathlib import Path
 import sys
-from utils import utils
+from .utils import utils
 
 # IO types
 PathLike = Union[str, Path]
