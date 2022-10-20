@@ -43,7 +43,8 @@ class NgLayer():
         
         # Fix image source
         self.image_source = self.__fix_image_source(image_config['source'])
-        
+        image_config['source'] = self.image_source
+
         self.update_state(image_config)
     
     def __fix_image_source(self, source_path:PathLike) -> str:
