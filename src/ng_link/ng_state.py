@@ -13,9 +13,10 @@ class NgState():
     def __init__(
         self, 
         input_config:dict, 
-        output_json:Optional[PathLike], 
+        mount_service:str,
+        bucket_path:str,
+        output_json:PathLike, 
         verbose:Optional[bool]=False,
-        mount_service:Optional[str]="s3",
         base_url:Optional[str]='https://neuroglancer-demo.appspot.com/',
         json_name:Optional[str]='process_output.json'
     ) -> None:
@@ -26,17 +27,26 @@ class NgState():
         ------------------------
         image_config: dict
             Dictionary with the image configuration based on neuroglancer documentation.
+        mount_service: Optional[str]
+            This parameter could be 'gs' referring to a bucket in Google Cloud or 's3'in Amazon.
+        bucket_path: str
+            Path in cloud service where the dataset will be saved
         output_json: PathLike
             Path where the json will be written.
-        
         verbose: Optional[bool]
             If true, additional information will be shown. Default False.
+        base_url: Optional[str]
+            Neuroglancer service url
+        json_name: Optional[str]
+            Name of json file with neuroglancer configuration
+
         """
         
         self.input_config = input_config
         self.output_json = Path(self.__fix_output_json_path(output_json))
         self.verbose = verbose
         self.mount_service = mount_service
+        self.bucket_path = bucket_path
         self.base_url = base_url
         self.json_name = json_name
         
@@ -184,8 +194,10 @@ class NgState():
         for layer in layers:
             self.__layers.append(
                 NgLayer(
+                    dataset_path=self.output_json,
                     image_config=layer,
-                    mount_service=self.mount_service
+                    mount_service=self.mount_service,
+                    bucket_path=self.bucket_path
                 ).layer_state
             )
 
@@ -254,12 +266,9 @@ class NgState():
         
         Parameters
         ------------------------
-        output_json: Optional[PathLike]
-            Path where the neuroglancer state will be written as json
-        
         update_state: Optional[bool]
             Updates the neuroglancer state with dimensions and layers in case they were changed 
-            using class methods.
+            using class methods. Default False
         """
         
         if update_state:
@@ -274,23 +283,16 @@ class NgState():
         """
         Creates the neuroglancer link based on where the json will be written.
         
-        Parameters
-        ------------------------
-        base_url: Optional[str]
-            Base url where neuroglancer app was deployed. Default: https://neuroglancer-demo.appspot.com/
-        
-        save_txt: Optional[bool]
-            Saves the url link to visualize data as a .txt file in a specific path given by 
-            output_txt parameter.
-        
         Returns
         ------------------------
         str
             Neuroglancer url to visualize data.
         """
         
-        json_path = str(self.output_json.joinpath(self.json_name))
-        json_path = f"{self.mount_service}://{json_path}"
+        dataset_name = Path(self.output_json.stem)
+
+        json_path = str(dataset_name.joinpath(self.json_name))
+        json_path = f"{self.mount_service}://{self.bucket_path}/{json_path}"
         
         link = f"{self.base_url}#!{json_path}"
         
@@ -320,7 +322,7 @@ if __name__ == '__main__':
         },
         'layers': [
             {
-                'source': 'image_path.zarr',
+                'source': '/Users/camilo.laiton/repositories/aind-ng-link/src/ng_link/image_path.zarr',
                 'channel': 0,
                 # 'name': 'image_name_0',
                 'shader': {
@@ -335,7 +337,7 @@ if __name__ == '__main__':
                 }
             },
             {
-                'source': 'image_path.zarr',
+                'source': '/Users/camilo.laiton/repositories/aind-ng-link/src/ng_link/image_path.zarr',
                 'channel': 1,
                 # 'name': 'image_name_1',
                 'shader': {
@@ -352,7 +354,13 @@ if __name__ == '__main__':
         ]
     }
     
-    neuroglancer_link = NgState(example_data, "")
+    neuroglancer_link = NgState(
+        input_config=example_data, 
+        mount_service='s3',
+        bucket_path='aind-msma-data',
+        output_json="/Users/camilo.laiton/repositories/aind-ng-link/src",
+    )
+
     data = neuroglancer_link.state
     print(data)
     # neuroglancer_link.save_state_as_json('test.json')

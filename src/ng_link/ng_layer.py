@@ -9,33 +9,40 @@ PathLike = Union[str, Path]
 class NgLayer():
     
     def __init__(
-        self, 
+        self,
+        dataset_path:PathLike,
         image_config:dict, 
+        mount_service:str,
+        bucket_path:str,
         image_type:Optional[str]='image',
-        mount_service:Optional[str]="s3",
     ) -> None:
         """
         Class constructor
         
         Parameters
         ------------------------
+        dataset_path:PathLike
+            Path pointing to the dataset that contains the images
         image_config: dict
             Dictionary with the image configuration based on neuroglancer documentation.
-        image_type: Optional[str]
-            Image type based on neuroglancer documentation.
         mount_service: Optional[str]
             This parameter could be 'gs' referring to a bucket in Google Cloud or 's3'in Amazon.
+        bucket_path: str
+            Path in cloud service where the dataset will be saved
+        image_type: Optional[str]
+            Image type based on neuroglancer documentation.
         
         """
         
         self.__layer_state = {}
+        self.dataset_path = dataset_path
         self.image_config = image_config
         self.mount_service = mount_service
+        self.bucket_path = bucket_path
         self.image_type = image_type
         
         # Fix image source
         self.image_source = self.__fix_image_source(image_config['source'])
-        
         
         self.update_state(image_config)
     
@@ -53,17 +60,10 @@ class NgLayer():
         str
             Fixed path for neuroglancer json configuration.
         """
-        
-        source_path = str(source_path)
-        
-        # replacing jupyter path or cloud run job path
-        source_path = source_path.replace(
-            '/home/jupyter/', ''
-        ).replace(
-            "////", "//"
-        )
-        
-        source_path = f"{self.mount_service}://{source_path}" 
+
+        source_path = Path(source_path)
+        new_source_path = str(source_path.relative_to(self.dataset_path.parent))
+        source_path = f"{self.mount_service}://{self.bucket_path}/{new_source_path}" 
         
         if source_path.endswith('.zarr'):
             source_path = "zarr://" + source_path
@@ -220,6 +220,7 @@ class NgLayer():
         shader_config: str
             Shader configuration for neuroglancer in string format.
             e.g. #uicontrol vec3 color color(default=\"green\")\n#uicontrol invlerp normalized\nvoid main() {\n  emitRGB(color * normalized());\n}
+        
         Raises
         ------------------------
         ValueError:
