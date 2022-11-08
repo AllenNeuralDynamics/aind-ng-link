@@ -237,6 +237,9 @@ class NgState():
             
         actual_state['layers'] = self.__layers
         
+        actual_state['showAxisLines'] = True
+        actual_state['showScaleBar'] = True
+
         return actual_state
     
     def initialize_attributes(self, input_config:dict) -> None:
@@ -258,6 +261,55 @@ class NgState():
         
         # Initializing state
         self.__state = self.state
+
+        for key, val in input_config.items():
+            if key == 'showAxisLines':
+                self.show_axis_lines = val
+            
+            elif key == 'showScaleBar':
+                self.show_scale_bar = val
+
+    @property
+    def show_axis_lines(self) -> bool:
+        return self.__state['showAxisLines']
+    
+    @show_axis_lines.setter
+    def show_axis_lines(self, new_show_axis_lines:bool) -> None:
+        """
+        Sets the visible parameter in neuroglancer link.
+        
+        Parameters
+        ------------------------
+        new_show_axis_lines: bool
+            Boolean that dictates if the image axis are visible or not.
+        
+        Raises
+        ------------------------
+        ValueError:
+            If the parameter is not an boolean.
+        """
+        self.__state['showAxisLines'] = bool(new_show_axis_lines)
+
+    @property
+    def show_scale_bar(self) -> bool:
+        return self.__state['showScaleBar']
+    
+    @show_scale_bar.setter
+    def show_scale_bar(self, new_show_scale_bar:bool) -> None:
+        """
+        Sets the visible parameter in neuroglancer link.
+        
+        Parameters
+        ------------------------
+        new_show_scale_bar: bool
+            Boolean that dictates if the image scale bar are visible or not.
+        
+        Raises
+        ------------------------
+        ValueError:
+            If the parameter is not an boolean.
+        """
+        self.__state['showScaleBar'] = bool(new_show_scale_bar)
     
     def save_state_as_json(
         self,
@@ -503,7 +555,9 @@ if __name__ == '__main__':
                 'visible': True, # Optional
                 'opacity': 0.50
             }
-        ]
+        ],
+        'showScaleBar': False,
+        'showAxisLines': False
     }
     
     neuroglancer_link = NgState(

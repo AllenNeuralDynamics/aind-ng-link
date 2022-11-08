@@ -123,23 +123,43 @@ class NgLayer():
             new_source_path = []
 
             for source in source_path:
-                new_source_path.append(
-                    {
-                        'url': set_s3_path(source['url']),
-                        'transform': {
+                new_dict = {}
+
+                for key in source.keys():
+                    if key == 'transform_matrix':
+                        new_dict['transform'] = {
                             'matrix': helper_create_ng_translation_matrix(
                                 delta_x=source['transform_matrix']['delta_x'],
                                 delta_y=source['transform_matrix']['delta_y'],
                                 delta_z=source['transform_matrix']['delta_z']
                             ),
                             'outputDimensions' : self.output_dimensions,
-                        },
-                        'subsources': {
-                            'default': True
-                        },
-                        'enableDefaultSubsources': False,
-                    }
-                )
+                        }
+                    
+                    elif key == 'url':
+                        new_dict['url'] = set_s3_path(source['url'])
+
+                    else:
+                        new_dict[key] = source[key]
+
+                new_source_path.append(new_dict)
+                # new_source_path.append(
+                #     {
+                #         'url': set_s3_path(source['url']),
+                #         'transform': {
+                #             'matrix': helper_create_ng_translation_matrix(
+                #                 delta_x=source['transform_matrix']['delta_x'],
+                #                 delta_y=source['transform_matrix']['delta_y'],
+                #                 delta_z=source['transform_matrix']['delta_z']
+                #             ),
+                #             'outputDimensions' : self.output_dimensions,
+                #         },
+                #         'subsources': {
+                #             'default': True
+                #         },
+                #         'enableDefaultSubsources': False,
+                #     }
+                # )
         
         elif isinstance(source_path, get_args(PathLike)):
             # Single source image
