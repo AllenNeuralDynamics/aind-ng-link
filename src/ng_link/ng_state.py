@@ -158,12 +158,14 @@ class NgState():
         regex_axis = r'([x-zX-Z])$'
         
         for axis, axis_values in new_dimensions.items():
-            
+
             if re.search(regex_axis, axis):
                 self.__dimensions[axis] = self.__unpack_axis(axis_values)
-            else:
+            elif axis == 't':
                 self.__dimensions[axis] = self.__unpack_axis(axis_values, 'seconds')
-    
+            elif axis == "c'":
+                self.__dimensions[axis] = [axis_values['voxel_size'], axis_values['unit']]
+                
     @property
     def layers(self) -> List[dict]:
         """
@@ -194,7 +196,6 @@ class NgState():
         for layer in layers:
             self.__layers.append(
                 NgLayer(
-                    dataset_path=self.output_json,
                     image_config=layer,
                     mount_service=self.mount_service,
                     bucket_path=self.bucket_path,
@@ -367,4 +368,152 @@ if __name__ == '__main__':
     # neuroglancer_link.save_state_as_json('test.json')
     neuroglancer_link.save_state_as_json()
     print(neuroglancer_link.get_url_link())
+
+    example_data = {
+        'dimensions': {
+            # check the order
+            "x": {
+                "voxel_size": 0.74800002019210531934,
+                "unit": 'microns'
+            },
+            "y": {
+                "voxel_size": 0.74800002019210531934,
+                "unit": 'microns'
+            },
+            "z": {
+                "voxel_size": 1,
+                "unit": 'microns'
+            },
+            "c'": {
+                "voxel_size": 1,
+                "unit": ''
+            },
+            "t": {
+                "voxel_size": 0.001,
+                "unit": 'seconds'
+            },
+        },
+        'layers': [
+            {
+                'type': 'image', # Optional
+                'source': [
+                    {
+                        'url': 's3://aind-open-data/exaSPIM_609107_2022-09-21_14-48-48/exaSPIM/tile_x_0000_y_0000_z_0000_ch_488.zarr',
+                        'transform_matrix': {
+                            'delta_x' : -14192,
+                            'delta_y': -10640,
+                            'delta_z': 0
+                        }
+                    },
+                    {
+                        'url': 's3://aind-open-data/exaSPIM_609107_2022-09-21_14-48-48/exaSPIM/tile_x_0000_y_0001_z_0000_ch_488.zarr',
+                        'transform_matrix': {
+                            'delta_x' : -14192,
+                            'delta_y': -19684.000456947142,
+                            'delta_z': 0
+                        }
+                    },
+                    {
+                        'url': 's3://aind-open-data/exaSPIM_609107_2022-09-21_14-48-48/exaSPIM/tile_x_0000_y_0002_z_0000_ch_488.zarr',
+                        'transform_matrix': {
+                            'delta_x' : -14192,
+                            'delta_y': -28727.998694435275,
+                            'delta_z': 0
+                        }
+                    },
+                    {
+                        'url': 's3://aind-open-data/exaSPIM_609107_2022-09-21_14-48-48/exaSPIM/tile_x_0001_y_0000_z_0000_ch_488.zarr',
+                        'transform_matrix': {
+                            'delta_x' : -26255.200652782467,
+                            'delta_y': -10640,
+                            'delta_z': 0
+                        }
+                    },
+                    {
+                        'url': 's3://aind-open-data/exaSPIM_609107_2022-09-21_14-48-48/exaSPIM/tile_x_0001_y_0001_z_0000_ch_488.zarr',
+                        'transform_matrix': {
+                            'delta_x' : -26255.200652782467,
+                            'delta_y': -19684.000456947142,
+                            'delta_z': 0
+                        }
+                    },
+                    {
+                        'url': 's3://aind-open-data/exaSPIM_609107_2022-09-21_14-48-48/exaSPIM/tile_x_0001_y_0002_z_0000_ch_488.zarr',
+                        'transform_matrix': {
+                            'delta_x' : -26255.200652782467,
+                            'delta_y': -28727.998694435275,
+                            'delta_z': 0
+                        }
+                    },
+                    {
+                        'url': 's3://aind-open-data/exaSPIM_609107_2022-09-21_14-48-48/exaSPIM/tile_x_0002_y_0000_z_0000_ch_488.zarr',
+                        'transform_matrix': {
+                            'delta_x' : -38318.39686664473,
+                            'delta_y': -10640,
+                            'delta_z': 0
+                        }
+                    },
+                    {
+                        'url': 's3://aind-open-data/exaSPIM_609107_2022-09-21_14-48-48/exaSPIM/tile_x_0002_y_0001_z_0000_ch_488.zarr',
+                        'transform_matrix': {
+                            'delta_x' : -38318.39686664473,
+                            'delta_y': -19684.000456947142,
+                            'delta_z': 0
+                        }
+                    },
+                    {
+                        'url': 's3://aind-open-data/exaSPIM_609107_2022-09-21_14-48-48/exaSPIM/tile_x_0002_y_0002_z_0000_ch_488.zarr',
+                        'transform_matrix': {
+                            'delta_x' : -38318.39686664473,
+                            'delta_y': -28727.998694435275,
+                            'delta_z': 0
+                        }
+                    },
+                    {
+                        'url': 's3://aind-open-data/exaSPIM_609107_2022-09-21_14-48-48/exaSPIM/tile_x_0003_y_0000_z_0000_ch_488.zarr',
+                        'transform_matrix': {
+                            'delta_x' : -50381.5952999671,
+                            'delta_y': -10640,
+                            'delta_z': 0
+                        }
+                    },
+                    {
+                        'url': 's3://aind-open-data/exaSPIM_609107_2022-09-21_14-48-48/exaSPIM/tile_x_0003_y_0001_z_0000_ch_488.zarr',
+                        'transform_matrix': {
+                            'delta_x' : -50381.5952999671,
+                            'delta_y': -19684.000456947142,
+                            'delta_z': 0
+                        }
+                    },
+                    {
+                        'url': 's3://aind-open-data/exaSPIM_609107_2022-09-21_14-48-48/exaSPIM/tile_x_0003_y_0002_z_0000_ch_488.zarr',
+                        'transform_matrix': {
+                            'delta_x' : -50381.5952999671,
+                            'delta_y': -28727.998694435275,
+                            'delta_z': 0
+                        }
+                    }
+                ],
+                'channel': 0, # Optional
+                'shaderControls': { # Optional
+                    "normalized": {
+                        "range": [30, 70]
+                    }
+                },
+                'visible': True, # Optional
+                'opacity': 0.50
+            }
+        ]
+    }
     
+    neuroglancer_link = NgState(
+        input_config=example_data, 
+        mount_service='s3',
+        bucket_path='aind-msma-data',
+        output_json="/Users/camilo.laiton/repositories/aind-ng-link/src",
+    )
+
+    data = neuroglancer_link.state
+    # print(data)
+    neuroglancer_link.save_state_as_json()
+    print(neuroglancer_link.get_url_link())

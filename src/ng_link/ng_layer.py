@@ -31,6 +31,17 @@ def helper_create_ng_translation_matrix(
 
     return translation_matrix.tolist()
 
+def helper_reverse_dictionary(dictionary:dict) -> dict:
+
+    keys = list(dictionary.keys())
+    values = list(dictionary.values())
+    new_dict = {}
+
+    for idx in range(len(keys)-1, -1, -1):
+        new_dict[keys[idx]] = values[idx]
+
+    return new_dict
+
 class NgLayer():
     
     def __init__(
@@ -64,7 +75,8 @@ class NgLayer():
         self.image_type = image_type
 
         # Optional parameter that must be used when we have multiple images per layer
-        self.output_dimensions = output_dimensions
+        # Dictionary needs to be reversed for correct visualization
+        self.output_dimensions = helper_reverse_dictionary(output_dimensions)
 
         # Fix image source
         self.image_source = self.__fix_image_source(image_config['source'])
@@ -153,7 +165,7 @@ class NgLayer():
             self.image_channel = 0
             self.shader_control = {
                 "normalized": {
-                    "range": [0, 600]
+                    "range": [0, 200]
                 }
             }
             self.visible = True
@@ -169,7 +181,7 @@ class NgLayer():
             if 'shaderControls' not in image_config:
                 self.shader_control = {
                     "normalized": {
-                        "range": [0, 600]
+                        "range": [0, 200]
                     }
                 }
                 
@@ -212,7 +224,7 @@ class NgLayer():
                 },
                 'shaderControls': { # Optional
                     "normalized": {
-                        "range": [0, 600]
+                        "range": [0, 200]
                     }
                 }
             }
@@ -576,4 +588,4 @@ if __name__ == '__main__':
         output_dimensions=output_dimensions
     ).layer_state
     print(dict_data)
-
+    utils.save_dict_as_json('test.json', dict_data)
