@@ -197,7 +197,8 @@ class NgState():
                     dataset_path=self.output_json,
                     image_config=layer,
                     mount_service=self.mount_service,
-                    bucket_path=self.bucket_path
+                    bucket_path=self.bucket_path,
+                    output_dimensions=self.dimensions
                 ).layer_state
             )
 

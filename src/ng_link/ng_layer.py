@@ -1,28 +1,51 @@
-from typing import Any, Optional, Union
+from typing import Any, Optional, Union, List, Dict, get_args
 from pathlib import Path
 import sys
 from .utils import utils
+import numpy as np
 
 # IO types
 PathLike = Union[str, Path]
+SourceLike = Union[PathLike, List[Dict]]
+
+def helper_create_ng_translation_matrix(
+    delta_x:Optional[float]=0, 
+    delta_y:Optional[float]=0,
+    delta_z:Optional[float]=0,
+    n_cols:Optional[int]=6,
+    n_rows:Optional[int]=5
+) -> List:
+    translation_matrix = np.zeros((n_rows, n_cols), np.float16)
+    np.fill_diagonal(translation_matrix, 1)
+    
+    deltas = [delta_x, delta_y, delta_z]
+    start_point = n_rows - 1
+    
+    if start_point < len(deltas):
+        raise ValueError("N size of transformation matrix is not enough for deltas")
+    
+    # Setting translations for axis
+    for delta in deltas:
+        translation_matrix[start_point][-1] = delta
+        start_point -= 1
+
+    return translation_matrix.tolist()
 
 class NgLayer():
     
     def __init__(
         self,
-        dataset_path:PathLike,
         image_config:dict, 
         mount_service:str,
         bucket_path:str,
         image_type:Optional[str]='image',
+        output_dimensions:Optional[dict]=None
     ) -> None:
         """
         Class constructor
         
         Parameters
         ------------------------
-        dataset_path:PathLike
-            Path pointing to the dataset that contains the images
         image_config: dict
             Dictionary with the image configuration based on neuroglancer documentation.
         mount_service: Optional[str]
@@ -35,44 +58,82 @@ class NgLayer():
         """
         
         self.__layer_state = {}
-        self.dataset_path = dataset_path
         self.image_config = image_config
         self.mount_service = mount_service
         self.bucket_path = bucket_path
         self.image_type = image_type
-        
+
+        # Optional parameter that must be used when we have multiple images per layer
+        self.output_dimensions = output_dimensions
+
         # Fix image source
         self.image_source = self.__fix_image_source(image_config['source'])
         image_config['source'] = self.image_source
 
         self.update_state(image_config)
     
-    def __fix_image_source(self, source_path:PathLike) -> str:
+    def __fix_image_source(self, source_path:SourceLike) -> str:
         """
         Fixes the image source path to include the type of image neuroglancer accepts.
         
         Parameters
         ------------------------
-        source_path: PathLike
-            Path where the image is located.
+        source_path: SourceLike
+            Path or list of paths where the images are located with their transformation matrix.
         
         Returns
         ------------------------
-        str
-            Fixed path for neuroglancer json configuration.
+        SourceLike
+            Fixed path(s) for neuroglancer json configuration.
         """
+        new_source_path = None
 
-        source_path = Path(source_path)
-        new_source_path = str(source_path.relative_to(self.dataset_path.parent))
-        source_path = f"{self.mount_service}://{self.bucket_path}/{new_source_path}" 
-        
-        if source_path.endswith('.zarr'):
-            source_path = "zarr://" + source_path
+        def set_s3_path(orig_source_path:PathLike) -> str:
             
-        else:
-            raise NotImplementedError("This format has not been implemented yet for visualization")
+            s3_path = None
+            if not orig_source_path.startswith(f"{self.mount_service}://"):
+                orig_source_path = Path(orig_source_path)
+                s3_path = f"{self.mount_service}://{self.bucket_path}/{orig_source_path}"
+            
+            else:
+                s3_path = orig_source_path
         
-        return source_path
+            if s3_path.endswith('.zarr'):
+                s3_path = "zarr://" + s3_path
+                
+            else:
+                raise NotImplementedError("This format has not been implemented yet for visualization")
+
+            return s3_path
+
+        if isinstance(source_path, list):
+            # multiple sources in single image
+            new_source_path = []
+
+            for source in source_path:
+                new_source_path.append(
+                    {
+                        'url': set_s3_path(source['url']),
+                        'transform': {
+                            'matrix': helper_create_ng_translation_matrix(
+                                delta_x=source['transform_matrix']['delta_x'],
+                                delta_y=source['transform_matrix']['delta_y'],
+                                delta_z=source['transform_matrix']['delta_z']
+                            ),
+                            'outputDimensions' : self.output_dimensions,
+                        },
+                        'subsources': {
+                            'default': True
+                        },
+                        'enableDefaultSubsources': False,
+                    }
+                )
+        
+        elif isinstance(source_path, get_args(PathLike)):
+            # Single source image
+            new_source_path = set_s3_path(source_path)
+        
+        return new_source_path
     
     def set_default_values(self, image_config:dict={}, overwrite:bool=False) -> None:
         """
@@ -86,8 +147,7 @@ class NgLayer():
         overwrite: bool
             If the parameters already have values, with this flag they can be overwritten.
         
-        """
-        
+        """        
         
         if overwrite:
             self.image_channel = 0
@@ -122,8 +182,13 @@ class NgLayer():
                 
                 except KeyError:
                     channel = ''
-                self.__layer_state['name'] =  f"{Path(self.image_source).stem}_{channel}"
                 
+                if isinstance(self.image_source, get_args(PathLike)):
+                    self.__layer_state['name'] =  f"{Path(self.image_source).stem}_{channel}"
+                
+                else:
+                    self.__layer_state['name'] =  f"{Path(self.image_source[0]['url']).stem}_{channel}"
+
             if 'type' not in image_config:
                 self.__layer_state['type'] = str(self.image_type)
     
@@ -154,7 +219,7 @@ class NgLayer():
         """
         
         for param, value in image_config.items():
-            if param in ['type', 'source', 'name']:
+            if param in ['type', 'name', 'blend']:
                 self.__layer_state[param] = str(value)
                 
             if param in ['visible']:
@@ -168,6 +233,17 @@ class NgLayer():
                 
             if param == 'shaderControls':
                 self.shader_control = value
+            
+            if param == 'opacity':
+                self.opacity = value
+
+            if param == 'source':
+                if isinstance(value, get_args(PathLike)):
+                    self.__layer_state[param] = str(value)
+                
+                elif isinstance(value, list):
+                    # Setting list of dictionaries with image configuration
+                    self.__layer_state[param] = value
         
         self.set_default_values(image_config)
     
@@ -207,6 +283,27 @@ class NgLayer():
         
         return shader_string
     
+    @property
+    def opacity(self) -> str:
+        return self.__layer_state['opacity']
+
+    @opacity.setter
+    def opacity(self, opacity:float) -> None:
+        """
+        Sets the opacity parameter in neuroglancer link.
+        
+        Parameters
+        ------------------------
+        opacity: float
+            Float number between [0-1] that indicates the opacity.
+        
+        Raises
+        ------------------------
+        ValueError:
+            If the parameter is not an boolean.
+        """
+        self.__layer_state['opacity'] = float(opacity)
+
     @property
     def shader(self) -> str:
         return self.__layer_state['shader']
@@ -312,8 +409,8 @@ if __name__ == '__main__':
     
     example_data = {
         'type': 'image', # Optional
-        'source': 'image_path.zarr',
-        'channel': 1, # Optional
+        'source': 'relative/folder/to_bucket/image_path.zarr',
+        'channel': 0, # Optional
         # 'name': 'image_name', # Optional
         'shader': {
             'color': 'red',
@@ -325,8 +422,158 @@ if __name__ == '__main__':
                 "range": [0, 500]
             }
         },
-        'visible': False # Optional
+        'visible': False, # Optional
+        'opacity': 0.50
     }
-    
-    dict_data = NgLayer(image_config=example_data).layer_state
+
+    image_config = example_data
+    mount_service = 's3'
+    bucket_path = 'aind-open-data'
+
+    dict_data = NgLayer(image_config, mount_service, bucket_path).layer_state
     print(dict_data)
+
+    example_data = {
+        'type': 'image', # Optional
+        'source': [
+            {
+                'url': 's3://aind-open-data/exaSPIM_609107_2022-09-21_14-48-48/exaSPIM/tile_x_0000_y_0000_z_0000_ch_488.zarr',
+                'transform_matrix': {
+                    'delta_x' : -14192,
+                    'delta_y': -10640,
+                    'delta_z': 0
+                }
+            },
+            {
+                'url': 's3://aind-open-data/exaSPIM_609107_2022-09-21_14-48-48/exaSPIM/tile_x_0000_y_0001_z_0000_ch_488.zarr',
+                'transform_matrix': {
+                    'delta_x' : -14192,
+                    'delta_y': -19684.000456947142,
+                    'delta_z': 0
+                }
+            },
+            {
+                'url': 's3://aind-open-data/exaSPIM_609107_2022-09-21_14-48-48/exaSPIM/tile_x_0000_y_0002_z_0000_ch_488.zarr',
+                'transform_matrix': {
+                    'delta_x' : -14192,
+                    'delta_y': -28727.998694435275,
+                    'delta_z': 0
+                }
+            },
+            {
+                'url': 's3://aind-open-data/exaSPIM_609107_2022-09-21_14-48-48/exaSPIM/tile_x_0001_y_0000_z_0000_ch_488.zarr',
+                'transform_matrix': {
+                    'delta_x' : -26255.200652782467,
+                    'delta_y': -10640,
+                    'delta_z': 0
+                }
+            },
+            {
+                'url': 's3://aind-open-data/exaSPIM_609107_2022-09-21_14-48-48/exaSPIM/tile_x_0001_y_0001_z_0000_ch_488.zarr',
+                'transform_matrix': {
+                    'delta_x' : -26255.200652782467,
+                    'delta_y': -19684.000456947142,
+                    'delta_z': 0
+                }
+            },
+            {
+                'url': 's3://aind-open-data/exaSPIM_609107_2022-09-21_14-48-48/exaSPIM/tile_x_0001_y_0002_z_0000_ch_488.zarr',
+                'transform_matrix': {
+                    'delta_x' : -26255.200652782467,
+                    'delta_y': -28727.998694435275,
+                    'delta_z': 0
+                }
+            },
+            {
+                'url': 's3://aind-open-data/exaSPIM_609107_2022-09-21_14-48-48/exaSPIM/tile_x_0002_y_0000_z_0000_ch_488.zarr',
+                'transform_matrix': {
+                    'delta_x' : -38318.39686664473,
+                    'delta_y': -10640,
+                    'delta_z': 0
+                }
+            },
+            {
+                'url': 's3://aind-open-data/exaSPIM_609107_2022-09-21_14-48-48/exaSPIM/tile_x_0002_y_0001_z_0000_ch_488.zarr',
+                'transform_matrix': {
+                    'delta_x' : -38318.39686664473,
+                    'delta_y': -19684.000456947142,
+                    'delta_z': 0
+                }
+            },
+            {
+                'url': 's3://aind-open-data/exaSPIM_609107_2022-09-21_14-48-48/exaSPIM/tile_x_0002_y_0002_z_0000_ch_488.zarr',
+                'transform_matrix': {
+                    'delta_x' : -38318.39686664473,
+                    'delta_y': -28727.998694435275,
+                    'delta_z': 0
+                }
+            },
+            {
+                'url': 's3://aind-open-data/exaSPIM_609107_2022-09-21_14-48-48/exaSPIM/tile_x_0003_y_0000_z_0000_ch_488.zarr',
+                'transform_matrix': {
+                    'delta_x' : -50381.5952999671,
+                    'delta_y': -10640,
+                    'delta_z': 0
+                }
+            },
+            {
+                'url': 's3://aind-open-data/exaSPIM_609107_2022-09-21_14-48-48/exaSPIM/tile_x_0003_y_0001_z_0000_ch_488.zarr',
+                'transform_matrix': {
+                    'delta_x' : -50381.5952999671,
+                    'delta_y': -19684.000456947142,
+                    'delta_z': 0
+                }
+            },
+            {
+                'url': 's3://aind-open-data/exaSPIM_609107_2022-09-21_14-48-48/exaSPIM/tile_x_0003_y_0002_z_0000_ch_488.zarr',
+                'transform_matrix': {
+                    'delta_x' : -50381.5952999671,
+                    'delta_y': -28727.998694435275,
+                    'delta_z': 0
+                }
+            }
+        ],
+        'channel': 0, # Optional
+        'shaderControls': { # Optional
+            "normalized": {
+                "range": [30, 70]
+            }
+        },
+        'visible': True, # Optional
+        'opacity': 0.50
+    }
+
+    image_config = example_data
+    mount_service = 's3'
+    bucket_path = 'aind-open-data'
+    output_dimensions = {
+        "t": [
+        0.001,
+        "s"
+        ],
+        "c'": [
+        1,
+        ""
+        ],
+        "z": [
+        0.000001,
+        "m"
+        ],
+        "y": [
+        7.480000201921053e-7,
+        "m"
+        ],
+        "x": [
+        7.480000148631623e-7,
+        "m"
+        ]
+    }
+
+    dict_data = NgLayer(
+        image_config=image_config, 
+        mount_service=mount_service, 
+        bucket_path=bucket_path,
+        output_dimensions=output_dimensions
+    ).layer_state
+    print(dict_data)
+
