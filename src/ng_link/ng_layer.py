@@ -256,6 +256,7 @@ class NgLayer:
 
         return new_source_path
 
+    # flake8: noqa: C901
     def set_default_values(
         self, image_config: dict = {}, overwrite: bool = False
     ) -> None:
@@ -311,6 +312,7 @@ class NgLayer:
             if "type" not in image_config:
                 self.__layer_state["type"] = str(self.image_type)
 
+    # flake8: noqa: C901
     def update_state(self, image_config: dict) -> None:
         """
         Set default values for the image.
