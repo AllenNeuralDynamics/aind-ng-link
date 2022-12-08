@@ -1,3 +1,6 @@
+"""
+Class to represent a whole configuration state to visualize images in neuroglancer
+"""
 import re
 from pathlib import Path
 from typing import List, Optional, Union
@@ -12,6 +15,10 @@ PathLike = Union[str, Path]
 
 
 class NgState:
+    """
+    Class to represent a neuroglancer state (configuration json)
+    """
+
     def __init__(
         self,
         input_config: dict,
@@ -286,6 +293,14 @@ class NgState:
 
     @property
     def show_axis_lines(self) -> bool:
+        """
+        Getter of the show axis lines property
+
+        Returns
+        ------------------------
+        bool
+            Boolean with the show axis lines value.
+        """
         return self.__state["showAxisLines"]
 
     @show_axis_lines.setter
@@ -307,6 +322,14 @@ class NgState:
 
     @property
     def show_scale_bar(self) -> bool:
+        """
+        Getter of the show scale bar property
+
+        Returns
+        ------------------------
+        bool
+            Boolean with the show scale bar value.
+        """
         return self.__state["showScaleBar"]
 
     @show_scale_bar.setter
@@ -363,8 +386,10 @@ class NgState:
         return link
 
 
-if __name__ == "__main__":
-
+def examples():
+    """
+    Examples of how to use the neurglancer state class.
+    """
     example_data = {
         "dimensions": {
             # check the order
@@ -407,6 +432,9 @@ if __name__ == "__main__":
     # neuroglancer_link.save_state_as_json('test.json')
     neuroglancer_link.save_state_as_json()
     print(neuroglancer_link.get_url_link())
+
+    # Transformation matrix can be a dictionary with the axis translations
+    # or a affine transformation (list of lists)
 
     example_data = {
         "dimensions": {
@@ -541,3 +569,7 @@ if __name__ == "__main__":
     # print(data)
     neuroglancer_link.save_state_as_json()
     print(neuroglancer_link.get_url_link())
+
+
+if __name__ == "__main__":
+    examples()

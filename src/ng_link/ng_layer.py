@@ -1,3 +1,6 @@
+"""
+Class to represent a layer of a configuration state to visualize images in neuroglancer
+"""
 from pathlib import Path
 from typing import Dict, List, Optional, Union, get_args
 
@@ -15,6 +18,34 @@ def helper_create_ng_translation_matrix(
     n_cols: Optional[int] = 6,
     n_rows: Optional[int] = 5,
 ) -> List:
+    """
+    Helper function to create the translation matrix based on deltas over each axis
+
+    Parameters
+    ------------------------
+    delta_x: Optional[float]
+        Translation over the x axis.
+    delta_y: Optional[float]
+        Translation over the y axis.
+    delta_z: Optional[float]
+        Translation over the z axis.
+    n_cols: Optional[int]
+        number of columns to create the translation matrix.
+    n_rows: Optional[int]
+        number of rows to create the translation matrix.
+
+    Raises
+    ------------------------
+    ValueError:
+        Raises if the N size of the transformation matrix is not
+        enough for the deltas.
+
+    Returns
+    ------------------------
+    List
+        List with the translation matrix
+    """
+
     translation_matrix = np.zeros((n_rows, n_cols), np.float16)
     np.fill_diagonal(translation_matrix, 1)
 
@@ -35,6 +66,19 @@ def helper_create_ng_translation_matrix(
 
 
 def helper_reverse_dictionary(dictionary: dict) -> dict:
+    """
+    Helper to reverse a dictionary
+
+    Parameters
+    ------------------------
+    dictionary: dict
+        Dictionary to reverse
+
+    Returns
+    ------------------------
+    dict
+        Reversed dictionary
+    """
 
     keys = list(dictionary.keys())
     values = list(dictionary.values())
@@ -47,6 +91,10 @@ def helper_reverse_dictionary(dictionary: dict) -> dict:
 
 
 class NgLayer:
+    """
+    Class to represent a neuroglancer layer in the configuration json
+    """
+
     def __init__(
         self,
         image_config: dict,
@@ -87,6 +135,101 @@ class NgLayer:
 
         self.update_state(image_config)
 
+    def __set_s3_path(self, orig_source_path: PathLike) -> str:
+        """
+        Private method to set a s3 path based on a source path.
+        Available image formats: ['.zarr']
+
+        Parameters
+        ------------------------
+        orig_source_path: PathLike
+            Source path of the image
+
+        Raises
+        ------------------------
+        NotImplementedError:
+            Raises if the image format is not zarr.
+
+        Returns
+        ------------------------
+        str
+            String with the source path pointing to the mount service in the cloud
+        """
+
+        s3_path = None
+        if not orig_source_path.startswith(f"{self.mount_service}://"):
+            orig_source_path = Path(orig_source_path)
+            s3_path = (
+                f"{self.mount_service}://{self.bucket_path}/{orig_source_path}"
+            )
+
+        else:
+            s3_path = orig_source_path
+
+        if s3_path.endswith(".zarr"):
+            s3_path = "zarr://" + s3_path
+
+        else:
+            raise NotImplementedError(
+                "This format has not been implemented yet for visualization"
+            )
+
+        return s3_path
+
+    def __set_sources_paths(self, sources_paths: List) -> List:
+        """
+        Private method to set multiple image sources on s3 path. It also accepts
+        a transformation matrix that should be provided in the form of a list for
+        or a affine transformation or dictionary for a translation matrix.
+        Available image formats: ['.zarr']
+
+        Parameters
+        ------------------------
+        sources_paths: List
+            List of dictionaries with the image sources and its transformation
+            matrices in the case they are provided.
+
+        Returns
+        ------------------------
+        List
+            List of dictionaries with the configuration for neuroglancer
+        """
+        new_source_path = []
+
+        for source in sources_paths:
+            new_dict = {}
+
+            for key in source.keys():
+                if key == "transform_matrix" and isinstance(
+                    source["transform_matrix"], dict
+                ):
+                    new_dict["transform"] = {
+                        "matrix": helper_create_ng_translation_matrix(
+                            delta_x=source["transform_matrix"]["delta_x"],
+                            delta_y=source["transform_matrix"]["delta_y"],
+                            delta_z=source["transform_matrix"]["delta_z"],
+                        ),
+                        "outputDimensions": self.output_dimensions,
+                    }
+
+                elif key == "transform_matrix" and isinstance(
+                    source["transform_matrix"], list
+                ):
+                    new_dict["transform"] = {
+                        "matrix": source["transform_matrix"],
+                        "outputDimensions": self.output_dimensions,
+                    }
+
+                elif key == "url":
+                    new_dict["url"] = self.__set_s3_path(source["url"])
+
+                else:
+                    new_dict[key] = source[key]
+
+            new_source_path.append(new_dict)
+
+        return new_source_path
+
     def __fix_image_source(self, source_path: SourceLike) -> str:
         """
         Fixes the image source path to include the type of image neuroglancer accepts.
@@ -103,55 +246,13 @@ class NgLayer:
         """
         new_source_path = None
 
-        def set_s3_path(orig_source_path: PathLike) -> str:
-
-            s3_path = None
-            if not orig_source_path.startswith(f"{self.mount_service}://"):
-                orig_source_path = Path(orig_source_path)
-                s3_path = f"{self.mount_service}://{self.bucket_path}/{orig_source_path}"
-
-            else:
-                s3_path = orig_source_path
-
-            if s3_path.endswith(".zarr"):
-                s3_path = "zarr://" + s3_path
-
-            else:
-                raise NotImplementedError(
-                    "This format has not been implemented yet for visualization"
-                )
-
-            return s3_path
-
         if isinstance(source_path, list):
             # multiple sources in single image
-            new_source_path = []
-
-            for source in source_path:
-                new_dict = {}
-
-                for key in source.keys():
-                    if key == "transform_matrix":
-                        new_dict["transform"] = {
-                            "matrix": helper_create_ng_translation_matrix(
-                                delta_x=source["transform_matrix"]["delta_x"],
-                                delta_y=source["transform_matrix"]["delta_y"],
-                                delta_z=source["transform_matrix"]["delta_z"],
-                            ),
-                            "outputDimensions": self.output_dimensions,
-                        }
-
-                    elif key == "url":
-                        new_dict["url"] = set_s3_path(source["url"])
-
-                    else:
-                        new_dict[key] = source[key]
-
-                new_source_path.append(new_dict)
+            new_source_path = self.__set_sources_paths(source_path)
 
         elif isinstance(source_path, get_args(PathLike)):
             # Single source image
-            new_source_path = set_s3_path(source_path)
+            new_source_path = self.__set_s3_path(source_path)
 
         return new_source_path
 
@@ -305,6 +406,14 @@ class NgLayer:
 
     @property
     def opacity(self) -> str:
+        """
+        Getter of the opacity property
+
+        Returns
+        ------------------------
+        str
+            String with the opacity value
+        """
         return self.__layer_state["opacity"]
 
     @opacity.setter
@@ -326,6 +435,14 @@ class NgLayer:
 
     @property
     def shader(self) -> str:
+        """
+        Getter of the shader property
+
+        Returns
+        ------------------------
+        str
+            String with the shader value
+        """
         return self.__layer_state["shader"]
 
     @shader.setter
@@ -349,6 +466,14 @@ class NgLayer:
 
     @property
     def shader_control(self) -> dict:
+        """
+        Getter of the shader control property
+
+        Returns
+        ------------------------
+        str
+            String with the shader control value
+        """
         return self.__layer_state["shaderControls"]
 
     @shader_control.setter
@@ -370,7 +495,15 @@ class NgLayer:
         self.__layer_state["shaderControls"] = dict(shader_control_config)
 
     @property
-    def image_channel(self) -> None:
+    def image_channel(self) -> int:
+        """
+        Getter of the current image channel in the layer
+
+        Returns
+        ------------------------
+        int
+            Integer with the current image channel
+        """
         return self.__layer_state["localDimensions"]["c"]
 
     @image_channel.setter
@@ -393,6 +526,16 @@ class NgLayer:
 
     @property
     def visible(self) -> bool:
+        """
+        Getter of the visible attribute of the layer.
+        True means the layer will be visible when the image
+        is loaded in neuroglancer, False otherwise.
+
+        Returns
+        ------------------------
+        bool
+            Boolean with the current visible value
+        """
         return self.__layer_state["visible"]
 
     @visible.setter
@@ -414,8 +557,24 @@ class NgLayer:
 
     @property
     def layer_state(self) -> dict:
+        """
+        Getter of layer state property.
+
+        Returns
+        ------------------------
+        dict:
+            Dictionary with the current configuration of the layer state.
+        """
         return self.__layer_state
 
     @layer_state.setter
     def layer_state(self, new_layer_state: dict) -> None:
+        """
+        Setter of layer state property.
+
+        Parameters
+        ------------------------
+        new_layer_state: dict
+            Dictionary with the new configuration of the layer state.
+        """
         self.__layer_state = dict(new_layer_state)

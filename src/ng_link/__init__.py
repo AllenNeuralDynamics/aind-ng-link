@@ -1,3 +1,5 @@
+"""Init file of ng_link package"""
+
 __version__ = "0.0.2"
 
 from ng_link.ng_layer import NgLayer
