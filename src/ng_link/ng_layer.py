@@ -1,7 +1,9 @@
 from pathlib import Path
 from typing import Dict, List, Optional, Union, get_args
+import logging
 
 import numpy as np
+import zarr
 
 # IO types
 PathLike = Union[str, Path]
@@ -44,6 +46,17 @@ def helper_reverse_dictionary(dictionary: dict) -> dict:
         new_dict[keys[idx]] = values[idx]
 
     return new_dict
+
+
+def _is_zarr(path):
+    if path.endswith(".zarr"):
+        return True
+    try:
+        _ = zarr.open(path, 'r')
+        return True
+    except PathNotFoundError:
+        logging.debug(f"{path} is not a zarr folder")
+        return False
 
 
 class NgLayer:
@@ -113,7 +126,7 @@ class NgLayer:
             else:
                 s3_path = orig_source_path
 
-            if s3_path.endswith(".zarr"):
+            if _is_zarr(s3_path):
                 s3_path = "zarr://" + s3_path
 
             else:
