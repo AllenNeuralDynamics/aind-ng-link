@@ -1,3 +1,6 @@
+"""
+Class to represent a configuration state to visualize data in neuroglancer
+"""
 import re
 from pathlib import Path
 from typing import List, Optional, Union
@@ -12,6 +15,10 @@ PathLike = Union[str, Path]
 
 
 class NgState:
+    """
+    Class to represent a neuroglancer state (configuration json)
+    """
+
     def __init__(
         self,
         input_config: dict,
@@ -28,9 +35,9 @@ class NgState:
         Parameters
         ------------------------
         image_config: dict
-            Dictionary with the image configuration based on neuroglancer documentation.
+            Dictionary with the json configuration based on neuroglancer docs.
         mount_service: Optional[str]
-            This parameter could be 'gs' referring to a bucket in Google Cloud or 's3'in Amazon.
+            Could be 'gs' for a bucket in Google Cloud or 's3' in Amazon.
         bucket_path: str
             Path in cloud service where the dataset will be saved
         output_json: PathLike
@@ -63,7 +70,7 @@ class NgState:
     def __fix_output_json_path(self, output_json: PathLike) -> str:
 
         """
-        Fixes the json output path in order to have a similar structure for all links.
+        Fixes the json output path to have a similar structure for all links.
 
         Parameters
         ------------------------
@@ -87,12 +94,14 @@ class NgState:
         self, axis_values: dict, dest_metric: Optional[str] = "meters"
     ) -> List:
         """
-        Unpack axis voxel sizes converting them to meters which neuroglancer uses by default.
+        Unpack axis voxel sizes converting them to meters.
+        neuroglancer uses meters by default.
 
         Parameters
         ------------------------
         axis_values: dict
-            Dictionary with the axis values with the following structure for an axis:
+            Dictionary with the axis values with
+            the following structure for an axis:
             e.g. for Z dimension {
                 "voxel_size": 2.0,
                 "unit": 'microns'
@@ -104,7 +113,8 @@ class NgState:
         Returns
         ------------------------
         List
-            List with two values, the converted quantity and it's metric in neuroglancer format.
+            List with two values, the converted quantity
+            and it's metric in neuroglancer format.
         """
 
         if dest_metric not in ["meters", "seconds"]:
@@ -150,7 +160,8 @@ class NgState:
         Parameters
         ------------------------
         dimensions: dict
-            Dictionary with the axis values with the following structure for an axis:
+            Dictionary with the axis values
+            with the following structure for an axis:
             e.g. for Z dimension {
                 "voxel_size": 2.0,
                 "unit": 'microns'
@@ -160,7 +171,7 @@ class NgState:
 
         if not isinstance(new_dimensions, dict):
             raise ValueError(
-                f"Dimensions accepts only dict. Received value: {new_dimensions}"
+                f"Dimensions accepts only dict. Received: {new_dimensions}"
             )
 
         regex_axis = r"([x-zX-Z])$"
@@ -259,7 +270,8 @@ class NgState:
 
     def initialize_attributes(self, input_config: dict) -> None:
         """
-        Initializes the following attributes for a given image layer: dimensions, layers.
+        Initializes the following attributes for a given
+        image layer: dimensions, layers.
 
         Parameters
         ------------------------
@@ -286,6 +298,14 @@ class NgState:
 
     @property
     def show_axis_lines(self) -> bool:
+        """
+        Getter of the show axis lines property
+
+        Returns
+        ------------------------
+        bool
+            Boolean with the show axis lines value.
+        """
         return self.__state["showAxisLines"]
 
     @show_axis_lines.setter
@@ -307,6 +327,14 @@ class NgState:
 
     @property
     def show_scale_bar(self) -> bool:
+        """
+        Getter of the show scale bar property
+
+        Returns
+        ------------------------
+        bool
+            Boolean with the show scale bar value.
+        """
         return self.__state["showScaleBar"]
 
     @show_scale_bar.setter
@@ -333,8 +361,9 @@ class NgState:
         Parameters
         ------------------------
         update_state: Optional[bool]
-            Updates the neuroglancer state with dimensions and layers in case they were changed
-            using class methods. Default False
+            Updates the neuroglancer state with dimensions
+            and layers in case they were changed using
+            class methods. Default False
         """
 
         if update_state:
@@ -363,8 +392,11 @@ class NgState:
         return link
 
 
-if __name__ == "__main__":
-
+# flake8: noqa: E501
+def examples():
+    """
+    Examples of how to use the neurglancer state class.
+    """
     example_data = {
         "dimensions": {
             # check the order
@@ -375,7 +407,7 @@ if __name__ == "__main__":
         },
         "layers": [
             {
-                "source": "/Users/camilo.laiton/repositories/aind-ng-link/src/ng_link/image_path.zarr",
+                "source": "image_path.zarr",
                 "channel": 0,
                 # 'name': 'image_name_0',
                 "shader": {"color": "green", "emitter": "RGB", "vec": "vec3"},
@@ -384,7 +416,7 @@ if __name__ == "__main__":
                 },
             },
             {
-                "source": "/Users/camilo.laiton/repositories/aind-ng-link/src/ng_link/image_path.zarr",
+                "source": "image_path.zarr",
                 "channel": 1,
                 # 'name': 'image_name_1',
                 "shader": {"color": "red", "emitter": "RGB", "vec": "vec3"},
@@ -407,6 +439,9 @@ if __name__ == "__main__":
     # neuroglancer_link.save_state_as_json('test.json')
     neuroglancer_link.save_state_as_json()
     print(neuroglancer_link.get_url_link())
+
+    # Transformation matrix can be a dictionary with the axis translations
+    # or a affine transformation (list of lists)
 
     example_data = {
         "dimensions": {
@@ -541,3 +576,7 @@ if __name__ == "__main__":
     # print(data)
     neuroglancer_link.save_state_as_json()
     print(neuroglancer_link.get_url_link())
+
+
+if __name__ == "__main__":
+    examples()
