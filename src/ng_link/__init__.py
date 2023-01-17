@@ -1,6 +1,7 @@
-"""Init file of ng_link package"""
-
-__version__ = "0.0.2"
+"""
+Package for the generation of neuroglancer links
+"""
+__version__ = "0.0.3"
 
 # flake8: noqa: F401
 from ng_link.ng_layer import NgLayer

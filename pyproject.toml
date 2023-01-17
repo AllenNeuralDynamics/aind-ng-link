@@ -18,9 +18,10 @@ classifiers = [
 dynamic = ["version", "readme"]
 
 dependencies = [
-  'pandas',
-  'sphinx',
-  'pint'
+    'pandas',
+    'sphinx',
+    'pint',
+    'numpy'
 ]
 
 [project.optional-dependencies]
