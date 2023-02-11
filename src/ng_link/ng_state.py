@@ -7,8 +7,8 @@ from typing import List, Optional, Union
 
 from pint import UnitRegistry
 
-from .ng_layer import NgLayer
-from .utils import utils
+from ng_layer import NgLayer
+from utils import utils
 
 # IO types
 PathLike = Union[str, Path]
@@ -220,12 +220,28 @@ class NgState:
             )
 
         for layer in layers:
+            config = {}
+
+            if layer["type"] == "image":
+                config = {
+                    'image_config': layer,
+                    'mount_service': self.mount_service,
+                    'bucket_path': self.bucket_path,
+                    'output_dimensions': self.dimensions,
+                    'layer_type': layer['type']
+                }
+            
+            elif layer["type"] == "annotation":
+                config = {
+                    "annotation_source": layer["source"],
+                    "annotation_locations": layer["annotations"],
+                    "layer_type": layer["type"],
+                    "output_dimensions": self.dimensions
+                }
+
             self.__layers.append(
-                NgLayer(
-                    image_config=layer,
-                    mount_service=self.mount_service,
-                    bucket_path=self.bucket_path,
-                    output_dimensions=self.dimensions,
+                NgLayer().create(
+                    config
                 ).layer_state
             )
 
@@ -408,6 +424,7 @@ def examples():
         "layers": [
             {
                 "source": "image_path.zarr",
+                "type": "image",
                 "channel": 0,
                 # 'name': 'image_name_0',
                 "shader": {"color": "green", "emitter": "RGB", "vec": "vec3"},
@@ -417,6 +434,7 @@ def examples():
             },
             {
                 "source": "image_path.zarr",
+                "type": "image",
                 "channel": 1,
                 # 'name': 'image_name_1',
                 "shader": {"color": "red", "emitter": "RGB", "vec": "vec3"},
@@ -559,6 +577,19 @@ def examples():
                 },
                 "visible": True,  # Optional
                 "opacity": 0.50,
+            },
+            {
+                "type": "annotation",  # Optional
+                "source": {
+                    'url': "local://annotations"
+                },
+                "tool": "annotatePoint",
+                "name": "annotation_name_layer",
+                "annotations": [
+                    [500, 500, 500, 0.5],
+                    [500, 500, 500, 0.5],
+                    [500, 500, 500, 0.5],
+                ]
             }
         ],
         "showScaleBar": False,

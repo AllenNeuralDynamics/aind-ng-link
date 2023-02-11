@@ -89,18 +89,16 @@ def helper_reverse_dictionary(dictionary: dict) -> dict:
 
     return new_dict
 
-
-class NgLayer:
+class AnnotationLayer:
     """
-    Class to represent a neuroglancer layer in the configuration json
+    Class to represent a neuroglancer annotation layer in the
+    configuration json
     """
-
     def __init__(
         self,
-        image_config: dict,
-        mount_service: str,
-        bucket_path: str,
-        image_type: Optional[str] = "image",
+        annotation_source: str,
+        annotation_locations: List[List[int]],
+        layer_type: Optional[str] = "annotation",
         output_dimensions: Optional[dict] = None,
     ) -> None:
         """
@@ -114,7 +112,156 @@ class NgLayer:
             This parameter could be 'gs' referring to a bucket in Google Cloud or 's3'in Amazon.
         bucket_path: str
             Path in cloud service where the dataset will be saved
-        image_type: Optional[str]
+        layer_type: Optional[str]
+            Image type based on neuroglancer documentation.
+
+        """
+
+        self.__layer_state = {}
+        self.annotation_source = annotation_source
+        self.annotation_locations = annotation_locations
+        self.layer_type = layer_type
+
+        # Optional parameter that must be used when we have multiple images per layer
+        # Dictionary needs to be reversed for correct visualization
+        self.output_dimensions = helper_reverse_dictionary(output_dimensions)
+        self.update_state()
+
+    def set_annotation_source(self, source:dict):
+        actual_state = self.__layer_state
+        actual_state["source"] = source
+        return actual_state
+
+    def set_transform(self, output_dimensions:dict) -> dict:
+        actual_state = self.__layer_state
+        actual_state["source"]["transform"] = {
+            'outputDimensions': output_dimensions
+        }
+
+        return actual_state
+
+    def set_tool(self, tool_name:str) -> dict:
+        actual_state = self.__layer_state
+        actual_state["tool"] = str(tool_name)
+        return actual_state
+
+    def set_tab_name(self, tab_name:str) -> dict:
+        actual_state = self.__layer_state
+        actual_state["tab"] = str(tab_name)
+        return actual_state
+
+    def set_annotations(
+        self,
+        annotation_points: List[List[int]],
+        annotation_type: str
+    ) -> dict:
+        actual_state = self.__layer_state
+        
+        if annotation_type == "points":
+            def get_point_config(id:int, point: List[int]) -> dict:
+                point_config = {
+                    "point": point,
+                    "type": "point",
+                    "id": str(id)
+                }
+
+                return point_config
+
+            actual_state["annotations"] = []
+
+            for annotation_point_idx in range(len(annotation_points)):
+                point_config = get_point_config(
+                    annotation_point_idx,
+                    annotation_points[annotation_point_idx]
+                )
+
+                actual_state["annotations"].append(
+                    point_config    
+                )
+
+        return actual_state
+
+    def set_layer_name(self, layer_name:str) -> dict:
+        actual_state = self.__layer_state
+        actual_state["name"] = layer_name
+        return actual_state
+
+    def update_state(self):
+        self.__layer_state = self.set_annotation_source(
+            self.annotation_source
+        )
+
+        self.__layer_state = self.set_transform(
+            self.output_dimensions
+        )
+
+        self.__layer_state = self.set_tool("annotatePoint")
+
+        self.__layer_state = self.set_tab_name(
+            "annotations"
+        )
+
+        self.__layer_state = self.set_annotations(
+            self.annotation_locations,
+            "points"
+        )
+        
+        self.__layer_state = self.set_layer_name(
+            "annotationLayer"
+        )
+
+        self.__layer_state["type"] = "annotation"
+
+    @property
+    def layer_state(self) -> dict:
+        """
+        Getter of layer state property.
+
+        Returns
+        ------------------------
+        dict:
+            Dictionary with the current configuration of the layer state.
+        """
+        return self.__layer_state
+
+    @layer_state.setter
+    def layer_state(self, new_layer_state: dict) -> None:
+        """
+        Setter of layer state property.
+
+        Parameters
+        ------------------------
+        new_layer_state: dict
+            Dictionary with the new configuration of the layer state.
+        """
+        self.__layer_state = dict(new_layer_state)
+
+
+class ImageLayer:
+    """
+    Class to represent a neuroglancer image layer in the
+    configuration json
+    """
+    def __init__(
+        self,
+        image_config: dict,
+        mount_service: str,
+        bucket_path: str,
+        layer_type: Optional[str] = "image",
+        output_dimensions: Optional[dict] = None,
+    ) -> None:
+        """
+        Class constructor
+
+        Parameters
+        ------------------------
+        image_config: dict
+            Dictionary with the image configuration based on neuroglancer documentation.
+        mount_service: Optional[str]
+            This parameter could be 'gs' referring to a bucket in Google Cloud or 's3'in Amazon.
+        bucket_path: str
+            Path in cloud service where the dataset will be saved
+        layer_type: Optional[str]
             Image type based on neuroglancer documentation.
 
         """
@@ -123,7 +270,7 @@ class NgLayer:
         self.image_config = image_config
         self.mount_service = mount_service
         self.bucket_path = bucket_path
-        self.image_type = image_type
+        self.layer_type = layer_type
 
         # Optional parameter that must be used when we have multiple images per layer
         # Dictionary needs to be reversed for correct visualization
@@ -278,7 +425,7 @@ class NgLayer:
             self.shader_control = {"normalized": {"range": [0, 200]}}
             self.visible = True
             self.__layer_state["name"] = str(Path(self.image_source).stem)
-            self.__layer_state["type"] = str(self.image_type)
+            self.__layer_state["type"] = str(self.layer_type)
 
         elif len(image_config):
             # Setting default image_config in json image layer
@@ -310,7 +457,7 @@ class NgLayer:
                     ] = f"{Path(self.image_source[0]['url']).stem}_{channel}"
 
             if "type" not in image_config:
-                self.__layer_state["type"] = str(self.image_type)
+                self.__layer_state["type"] = str(self.layer_type)
 
     # flake8: noqa: C901
     def update_state(self, image_config: dict) -> None:
@@ -580,3 +727,39 @@ class NgLayer:
             Dictionary with the new configuration of the layer state.
         """
         self.__layer_state = dict(new_layer_state)
+    
+
+class NgLayer:
+    """
+    Class to represent a neuroglancer layer in the configuration json
+    """
+    def __init__(
+        self
+    ) -> None:
+        self.__extensions = ["image", "annotation"]
+
+        self.factory = {
+            "image": ImageLayer,
+            "annotation": AnnotationLayer,
+        }
+
+    @property
+    def extensions(self) -> List:
+        """
+        Method to return the allowed format extensions of the layers.
+        Returns
+        ------------------------
+        List
+            List with the allowed layers format extensions
+        """
+        return self.__extensions
+    
+    def create(self, params: dict):
+
+        layer_type = params["layer_type"]
+
+        if layer_type not in self.__extensions:
+            raise NotImplementedError(f"Layer type {layer_type} has not been implemented")
+
+        return self.factory[layer_type](**params)
+    
