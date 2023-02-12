@@ -124,7 +124,7 @@ class AnnotationLayer:
 
         # Optional parameter that must be used when we have multiple images per layer
         # Dictionary needs to be reversed for correct visualization
-        self.output_dimensions = helper_reverse_dictionary(output_dimensions)
+        self.output_dimensions = output_dimensions #helper_reverse_dictionary(output_dimensions)
         self.update_state()
 
     def set_annotation_source(self, source:dict):
@@ -152,15 +152,32 @@ class AnnotationLayer:
 
     def set_annotations(
         self,
-        annotation_points: List[List[int]],
+        annotation_points: List[Dict[str, int]],
         annotation_type: str
     ) -> dict:
         actual_state = self.__layer_state
         
         if annotation_type == "points":
-            def get_point_config(id:int, point: List[int]) -> dict:
+            def get_point_config(id:int, point: Dict[str, int]) -> dict:
+
+                dimension_order = self.output_dimensions.keys()
+
+                point_list = []
+                tc_missing = len(dimension_order) - 3
+
+                if tc_missing < 0:
+                    raise ValueError("Expected number of dimensions: 3")
+                
+                # Decrease # of iterations by setting it by default
+                for axis in dimension_order:
+                    if axis in point:
+                        point_list.append(float(point[axis]))
+                    
+                    else:
+                        point_list.append(float(0.5))
+
                 point_config = {
-                    "point": point,
+                    "point": point_list,
                     "type": "point",
                     "id": str(id)
                 }
@@ -169,7 +186,10 @@ class AnnotationLayer:
 
             actual_state["annotations"] = []
 
-            for annotation_point_idx in range(len(annotation_points)):
+            lower_limit = 80100
+            upper_limit = 80150 # len(annotation_points)
+
+            for annotation_point_idx in range(lower_limit, upper_limit):
                 point_config = get_point_config(
                     annotation_point_idx,
                     annotation_points[annotation_point_idx]
