@@ -5,6 +5,7 @@ import re
 from pathlib import Path
 from typing import List, Optional, Union
 
+import xmltodict
 from pint import UnitRegistry
 
 from .ng_layer import NgLayer
@@ -220,14 +221,27 @@ class NgState:
             )
 
         for layer in layers:
-            self.__layers.append(
-                NgLayer(
-                    image_config=layer,
-                    mount_service=self.mount_service,
-                    bucket_path=self.bucket_path,
-                    output_dimensions=self.dimensions,
-                ).layer_state
-            )
+            config = {}
+
+            if layer["type"] == "image":
+                config = {
+                    "image_config": layer,
+                    "mount_service": self.mount_service,
+                    "bucket_path": self.bucket_path,
+                    "output_dimensions": self.dimensions,
+                    "layer_type": layer["type"],
+                }
+
+            elif layer["type"] == "annotation":
+                config = {
+                    "annotation_source": layer["source"],
+                    "annotation_locations": layer["annotations"],
+                    "layer_type": layer["type"],
+                    "output_dimensions": self.dimensions,
+                    "limits": layer["limits"] if "limits" in layer else None,
+                }
+
+            self.__layers.append(NgLayer().create(config).layer_state)
 
     @property
     def state(self, new_state: dict) -> None:
@@ -392,10 +406,50 @@ class NgState:
         return link
 
 
-# flake8: noqa: E501
-def examples():
+def get_points_from_xml(path: PathLike, encoding: str = "utf-8") -> List[dict]:
     """
-    Examples of how to use the neurglancer state class.
+    Function to parse the points from the
+    cell segmentation capsule.
+
+    Parameters
+    -----------------
+
+    Path: PathLike
+        Path where the XML is stored.
+
+    encoding: str
+        XML encoding. Default: "utf-8"
+
+    Returns
+    -----------------
+    List[dict]
+        List with the location of the points.
+    """
+
+    with open(path, "r", encoding=encoding) as xml_reader:
+        xml_file = xml_reader.read()
+
+    xml_dict = xmltodict.parse(xml_file)
+    cell_data = xml_dict["CellCounter_Marker_File"]["Marker_Data"][
+        "Marker_Type"
+    ]["Marker"]
+
+    new_cell_data = []
+    for cell in cell_data:
+        new_cell_data.append(
+            {
+                "x": cell["MarkerX"],
+                "y": cell["MarkerY"],
+                "z": cell["MarkerZ"],
+            }
+        )
+
+    return new_cell_data
+
+
+def example_1():
+    """
+    Example one related to the SmartSPIM data
     """
     example_data = {
         "dimensions": {
@@ -408,6 +462,7 @@ def examples():
         "layers": [
             {
                 "source": "image_path.zarr",
+                "type": "image",
                 "channel": 0,
                 # 'name': 'image_name_0',
                 "shader": {"color": "green", "emitter": "RGB", "vec": "vec3"},
@@ -417,6 +472,7 @@ def examples():
             },
             {
                 "source": "image_path.zarr",
+                "type": "image",
                 "channel": 1,
                 # 'name': 'image_name_1',
                 "shader": {"color": "red", "emitter": "RGB", "vec": "vec3"},
@@ -440,9 +496,11 @@ def examples():
     neuroglancer_link.save_state_as_json()
     print(neuroglancer_link.get_url_link())
 
-    # Transformation matrix can be a dictionary with the axis translations
-    # or a affine transformation (list of lists)
 
+def example_2():
+    """
+    Example 2 related to the ExaSPIM data
+    """
     example_data = {
         "dimensions": {
             # check the order
@@ -559,7 +617,17 @@ def examples():
                 },
                 "visible": True,  # Optional
                 "opacity": 0.50,
-            }
+            },
+            {
+                "type": "annotation",  # Optional
+                "source": {"url": "local://annotations"},
+                "tool": "annotatePoint",
+                "name": "annotation_name_layer",
+                "annotations": [
+                    [1865, 4995, 3646, 0.5, 0.5],
+                    [1865, 4985, 3641, 0.5, 0.5],
+                ],
+            },
         ],
         "showScaleBar": False,
         "showAxisLines": False,
@@ -576,6 +644,72 @@ def examples():
     # print(data)
     neuroglancer_link.save_state_as_json()
     print(neuroglancer_link.get_url_link())
+
+
+def example_3(cells):
+    """
+    Example 3 with the annotation layer
+    """
+    example_data = {
+        "dimensions": {
+            # check the order
+            "z": {"voxel_size": 2.0, "unit": "microns"},
+            "y": {"voxel_size": 1.8, "unit": "microns"},
+            "x": {"voxel_size": 1.8, "unit": "microns"},
+            "t": {"voxel_size": 0.001, "unit": "seconds"},
+        },
+        "layers": [
+            {
+                "source": "image_path.zarr",
+                "type": "image",
+                "channel": 0,
+                # 'name': 'image_name_0',
+                "shader": {"color": "green", "emitter": "RGB", "vec": "vec3"},
+                "shaderControls": {  # Optional
+                    "normalized": {"range": [0, 500]}
+                },
+            },
+            {
+                "type": "annotation",
+                "source": {"url": "local://annotations"},
+                "tool": "annotatePoint",
+                "name": "annotation_name_layer",
+                "annotations": cells,
+                # Pass None or delete limits if
+                # you want to include all the points
+                "limits": [100, 200],  # None # erase line
+            },
+        ],
+    }
+
+    neuroglancer_link = NgState(
+        input_config=example_data,
+        mount_service="s3",
+        bucket_path="aind-msma-data",
+        output_json="/Users/camilo.laiton/repositories/aind-ng-link/src",
+    )
+
+    data = neuroglancer_link.state
+    print(data)
+    # neuroglancer_link.save_state_as_json('test.json')
+    neuroglancer_link.save_state_as_json()
+    print(neuroglancer_link.get_url_link())
+
+
+# flake8: noqa: E501
+def examples():
+    """
+    Examples of how to use the neurglancer state class.
+    """
+    example_1()
+
+    # Transformation matrix can be a dictionary with the axis translations
+    # or a affine transformation (list of lists)
+
+    cells_path = "/Users/camilo.laiton/Downloads/detected_cells.xml"
+    cells = get_points_from_xml(cells_path)
+
+    example_3(cells)
 
 
 if __name__ == "__main__":
