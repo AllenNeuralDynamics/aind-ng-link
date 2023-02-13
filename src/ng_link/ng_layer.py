@@ -89,63 +89,135 @@ def helper_reverse_dictionary(dictionary: dict) -> dict:
 
     return new_dict
 
+
 class AnnotationLayer:
     """
     Class to represent a neuroglancer annotation layer in the
     configuration json
     """
+
     def __init__(
         self,
         annotation_source: str,
-        annotation_locations: List[List[int]],
+        annotation_locations: List[dict],
+        output_dimensions: dict,
         layer_type: Optional[str] = "annotation",
-        output_dimensions: Optional[dict] = None,
+        limits: Optional[List[int]] = None,
     ) -> None:
         """
         Class constructor
 
         Parameters
         ------------------------
-        image_config: dict
-            Dictionary with the image configuration based on neuroglancer documentation.
-        mount_service: Optional[str]
-            This parameter could be 'gs' referring to a bucket in Google Cloud or 's3'in Amazon.
-        bucket_path: str
-            Path in cloud service where the dataset will be saved
-        layer_type: Optional[str]
-            Image type based on neuroglancer documentation.
+        annotation_source: str
+            Location of the annotation layer information
 
+        annotation_locations: List[dict]
+            List with the location of the points. The dictionary
+            must have this order: {"x": valx, "y": valy, "z": valz}
+
+        output_dimensions: dict
+            Dictionary with the output dimensions of the layer.
+            Note: The axis order indicates where the points
+            will be placed.
+
+        layer_type: str
+            Layer type. Default: annotation
+
+        limits: Optional[List[int]]
+            Range of points to visualize
         """
 
         self.__layer_state = {}
         self.annotation_source = annotation_source
         self.annotation_locations = annotation_locations
         self.layer_type = layer_type
+        self.limits = limits
 
         # Optional parameter that must be used when we have multiple images per layer
         # Dictionary needs to be reversed for correct visualization
-        self.output_dimensions = output_dimensions #helper_reverse_dictionary(output_dimensions)
+        self.output_dimensions = (
+            output_dimensions  # helper_reverse_dictionary(output_dimensions)
+        )
         self.update_state()
 
-    def set_annotation_source(self, source:dict):
+    def set_annotation_source(self, source: dict) -> dict:
+        """
+        Sets the annotation source.
+
+        Parameters
+        ---------------
+        source: dict
+            Dictionary with the annotation source
+
+        Returns
+        ---------------
+        dict:
+            Dictionary with the modified layer.
+        """
+
         actual_state = self.__layer_state
         actual_state["source"] = source
         return actual_state
 
-    def set_transform(self, output_dimensions:dict) -> dict:
+    def set_transform(self, output_dimensions: dict) -> dict:
+        """
+        Sets the output dimensions and transformation
+        to the annotation layer.
+
+        Parameters
+        ---------------
+        output_dimensions: dict
+            Dictionary with the output dimensions
+            for the layer. The order of the axis in
+            the dictionary determines the location
+            of the points. {"t": t, "c": c, "z", z, ...}
+
+        Returns
+        ---------------
+        dict:
+            Dictionary with the modified layer.
+        """
+
         actual_state = self.__layer_state
         actual_state["source"]["transform"] = {
-            'outputDimensions': output_dimensions
+            "outputDimensions": output_dimensions
         }
 
         return actual_state
 
-    def set_tool(self, tool_name:str) -> dict:
+    def set_tool(self, tool_name: str) -> dict:
+        """
+        Sets the tool name in neuroglancer.
+
+        Parameters
+        ---------------
+        tool_name: str
+            Tool name in neuroglancer.
+
+        Returns
+        ---------------
+        dict:
+            Dictionary with the modified layer.
+        """
         actual_state = self.__layer_state
         actual_state["tool"] = str(tool_name)
         return actual_state
 
-    def set_tab_name(self, tab_name:str) -> dict:
+    def set_tab_name(self, tab_name: str) -> dict:
+        """
+        Sets the tab name in neuroglancer.
+
+        Parameters
+        ---------------
+        tab_name: str
+            Tab name in neuroglancer.
+
+        Returns
+        ---------------
+        dict:
+            Dictionary with the modified layer.
+        """
         actual_state = self.__layer_state
         actual_state["tab"] = str(tab_name)
         return actual_state
@@ -153,12 +225,81 @@ class AnnotationLayer:
     def set_annotations(
         self,
         annotation_points: List[Dict[str, int]],
-        annotation_type: str
+        annotation_type: str,
+        limits: Optional[List[int]] = None,
     ) -> dict:
+        """
+        Sets the annotations in neuroglancer using a
+        list with the locations of the annotations.
+
+        Parameters
+        ---------------
+        annotation_points: List[Dict[str, int]]
+            Points where the annotations will
+            be placed.
+
+        annotation_type: str
+            Annotation type. e.g., "points"
+
+        limits: Optional[List[int]]
+            Limist of points. [lower_limit, upper_limit]
+
+        Returns
+        ---------------
+        dict:
+            Dictionary with the modified layer.
+        """
+
+        # Conditional to add specific points in
+        # visualization link
+
+        annotation_len = len(annotation_points)
+        lower_limit = 0
+        upper_limit = 0
+
+        if limits is None:
+            upper_limit = annotation_len
+            lower_limit = 0
+
+        else:
+            upper_limit = limits[1]
+            lower_limit = limits[0]
+
+        if not isinstance(upper_limit, int):
+            upper_limit = annotation_len
+
+        if not isinstance(lower_limit, int) or lower_limit < 0:
+            lower_limit = 0
+
+        if (
+            upper_limit <= 0
+            or upper_limit < lower_limit
+            or upper_limit > annotation_len
+        ):
+            raise ValueError("Limits must be in a valid range.")
+
         actual_state = self.__layer_state
-        
+
         if annotation_type == "points":
-            def get_point_config(id:int, point: Dict[str, int]) -> dict:
+
+            def get_point_config(id: str, point: Dict[str, int]) -> dict:
+                """
+                Gets the point configuration for neuroglancer
+
+                Parameters
+                --------------
+                id: str
+                    Unique ID to represent a point
+
+                point: Dict[str, int]
+                    Point location
+
+                Returns
+                ---------------
+                dict:
+                    Dictionary with the point configuration
+                    adapted to neuroglancer.
+                """
 
                 dimension_order = self.output_dimensions.keys()
 
@@ -167,68 +308,71 @@ class AnnotationLayer:
 
                 if tc_missing < 0:
                     raise ValueError("Expected number of dimensions: 3")
-                
+
                 # Decrease # of iterations by setting it by default
                 for axis in dimension_order:
                     if axis in point:
                         point_list.append(float(point[axis]))
-                    
+
                     else:
                         point_list.append(float(0.5))
 
                 point_config = {
                     "point": point_list,
                     "type": "point",
-                    "id": str(id)
+                    "id": str(id),
                 }
 
                 return point_config
 
             actual_state["annotations"] = []
 
-            lower_limit = 80100
-            upper_limit = 80150 # len(annotation_points)
-
             for annotation_point_idx in range(lower_limit, upper_limit):
                 point_config = get_point_config(
                     annotation_point_idx,
-                    annotation_points[annotation_point_idx]
+                    annotation_points[annotation_point_idx],
                 )
 
-                actual_state["annotations"].append(
-                    point_config    
-                )
+                actual_state["annotations"].append(point_config)
 
         return actual_state
 
-    def set_layer_name(self, layer_name:str) -> dict:
+    def set_layer_name(self, layer_name: str) -> dict:
+        """
+        Sets the layer name
+
+        Parameters
+        ---------------
+        layer_name: str
+            Layer name
+
+        Returns
+        ---------------
+        dict:
+            Dictionary with the modified layer.
+        """
         actual_state = self.__layer_state
         actual_state["name"] = layer_name
         return actual_state
 
     def update_state(self):
-        self.__layer_state = self.set_annotation_source(
-            self.annotation_source
-        )
+        """
+        Updates the state of the layer
+        """
 
-        self.__layer_state = self.set_transform(
-            self.output_dimensions
-        )
+        self.__layer_state = self.set_annotation_source(self.annotation_source)
+
+        self.__layer_state = self.set_transform(self.output_dimensions)
 
         self.__layer_state = self.set_tool("annotatePoint")
 
-        self.__layer_state = self.set_tab_name(
-            "annotations"
-        )
+        self.__layer_state = self.set_tab_name("annotations")
 
         self.__layer_state = self.set_annotations(
-            self.annotation_locations,
-            "points"
+            self.annotation_locations, "points", self.limits
         )
-        
-        self.__layer_state = self.set_layer_name(
-            "annotationLayer"
-        )
+
+        self.__layer_state = self.set_layer_name("annotationLayer")
 
         self.__layer_state["type"] = "annotation"
 
@@ -262,6 +406,7 @@ class ImageLayer:
     Class to represent a neuroglancer image layer in the
     configuration json
     """
+
     def __init__(
         self,
         image_config: dict,
@@ -747,15 +892,17 @@ class ImageLayer:
             Dictionary with the new configuration of the layer state.
         """
         self.__layer_state = dict(new_layer_state)
-    
+
 
 class NgLayer:
     """
     Class to represent a neuroglancer layer in the configuration json
     """
-    def __init__(
-        self
-    ) -> None:
+
+    def __init__(self) -> None:
+        """
+        Class constructor
+        """
         self.__extensions = ["image", "annotation"]
 
         self.factory = {
@@ -773,13 +920,18 @@ class NgLayer:
             List with the allowed layers format extensions
         """
         return self.__extensions
-    
+
     def create(self, params: dict):
+        """
+        Instantiates the class corresponding to
+        the type of annotation.
+        """
 
         layer_type = params["layer_type"]
 
         if layer_type not in self.__extensions:
-            raise NotImplementedError(f"Layer type {layer_type} has not been implemented")
+            raise NotImplementedError(
+                f"Layer type {layer_type} has not been implemented"
+            )
 
         return self.factory[layer_type](**params)
-    

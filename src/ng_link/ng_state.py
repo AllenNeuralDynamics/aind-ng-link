@@ -5,10 +5,11 @@ import re
 from pathlib import Path
 from typing import List, Optional, Union
 
+import xmltodict
 from pint import UnitRegistry
 
-from ng_layer import NgLayer
-from utils import utils
+from .ng_layer import NgLayer
+from .utils import utils
 
 # IO types
 PathLike = Union[str, Path]
@@ -224,26 +225,23 @@ class NgState:
 
             if layer["type"] == "image":
                 config = {
-                    'image_config': layer,
-                    'mount_service': self.mount_service,
-                    'bucket_path': self.bucket_path,
-                    'output_dimensions': self.dimensions,
-                    'layer_type': layer['type']
+                    "image_config": layer,
+                    "mount_service": self.mount_service,
+                    "bucket_path": self.bucket_path,
+                    "output_dimensions": self.dimensions,
+                    "layer_type": layer["type"],
                 }
-            
+
             elif layer["type"] == "annotation":
                 config = {
                     "annotation_source": layer["source"],
                     "annotation_locations": layer["annotations"],
                     "layer_type": layer["type"],
-                    "output_dimensions": self.dimensions
+                    "output_dimensions": self.dimensions,
+                    "limits": layer["limits"],
                 }
 
-            self.__layers.append(
-                NgLayer().create(
-                    config
-                ).layer_state
-            )
+            self.__layers.append(NgLayer().create(config).layer_state)
 
     @property
     def state(self, new_state: dict) -> None:
@@ -408,27 +406,51 @@ class NgState:
         return link
 
 
-def get_points_from_xml(path: PathLike) -> List[List[dict]]:
-    import xmltodict
-    encoding = "utf-8"
+def get_points_from_xml(path: PathLike, encoding: str = "utf-8") -> List[dict]:
+    """
+    Function to parse the points from the
+    cell segmentation capsule.
+
+    Parameters
+    -----------------
+
+    Path: PathLike
+        Path where the XML is stored.
+
+    encoding: str
+        XML encoding. Default: "utf-8"
+
+    Returns
+    -----------------
+    List[dict]
+        List with the location of the points.
+    """
+
     with open(path, "r", encoding=encoding) as xml_reader:
         xml_file = xml_reader.read()
 
     xml_dict = xmltodict.parse(xml_file)
-    cell_data = xml_dict["CellCounter_Marker_File"]["Marker_Data"]["Marker_Type"]["Marker"]
-    
+    cell_data = xml_dict["CellCounter_Marker_File"]["Marker_Data"][
+        "Marker_Type"
+    ]["Marker"]
+
     new_cell_data = []
     for cell in cell_data:
-        new_cell_data.append({
-            'x': cell["MarkerX"],
-            'y': cell["MarkerY"],
-            'z': cell["MarkerZ"],
-        })
+        new_cell_data.append(
+            {
+                "x": cell["MarkerX"],
+                "y": cell["MarkerY"],
+                "z": cell["MarkerZ"],
+            }
+        )
 
     return new_cell_data
 
 
 def example_1():
+    """
+    Example one related to the SmartSPIM data
+    """
     example_data = {
         "dimensions": {
             # check the order
@@ -474,7 +496,11 @@ def example_1():
     neuroglancer_link.save_state_as_json()
     print(neuroglancer_link.get_url_link())
 
+
 def example_2():
+    """
+    Example 2 related to the ExaSPIM data
+    """
     example_data = {
         "dimensions": {
             # check the order
@@ -594,16 +620,14 @@ def example_2():
             },
             {
                 "type": "annotation",  # Optional
-                "source": {
-                    'url': "local://annotations"
-                },
+                "source": {"url": "local://annotations"},
                 "tool": "annotatePoint",
                 "name": "annotation_name_layer",
                 "annotations": [
                     [1865, 4995, 3646, 0.5, 0.5],
-                    [1865, 4985, 3641, 0.5, 0.5]
-                ]
-            }
+                    [1865, 4985, 3641, 0.5, 0.5],
+                ],
+            },
         ],
         "showScaleBar": False,
         "showAxisLines": False,
@@ -623,6 +647,9 @@ def example_2():
 
 
 def example_3(cells):
+    """
+    Example 3 with the annotation layer
+    """
     example_data = {
         "dimensions": {
             # check the order
@@ -644,13 +671,12 @@ def example_3(cells):
             },
             {
                 "type": "annotation",
-                "source": {
-                    'url': "local://annotations"
-                },
+                "source": {"url": "local://annotations"},
                 "tool": "annotatePoint",
                 "name": "annotation_name_layer",
-                "annotations": cells
-            }
+                "annotations": cells,
+                "limits": [100, 200],
+            },
         ],
     }
 
@@ -667,13 +693,14 @@ def example_3(cells):
     neuroglancer_link.save_state_as_json()
     print(neuroglancer_link.get_url_link())
 
+
 # flake8: noqa: E501
 def examples():
     """
     Examples of how to use the neurglancer state class.
     """
     example_1()
-    
+
     # Transformation matrix can be a dictionary with the axis translations
     # or a affine transformation (list of lists)
 
