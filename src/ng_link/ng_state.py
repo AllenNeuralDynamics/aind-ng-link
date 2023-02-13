@@ -238,7 +238,7 @@ class NgState:
                     "annotation_locations": layer["annotations"],
                     "layer_type": layer["type"],
                     "output_dimensions": self.dimensions,
-                    "limits": layer["limits"],
+                    "limits": layer["limits"] if "limits" in layer else None,
                 }
 
             self.__layers.append(NgLayer().create(config).layer_state)
@@ -675,7 +675,9 @@ def example_3(cells):
                 "tool": "annotatePoint",
                 "name": "annotation_name_layer",
                 "annotations": cells,
-                "limits": [100, 200],
+                # Pass None or delete limits if
+                # you want to include all the points
+                "limits": [100, 200],  # None # erase line
             },
         ],
     }
