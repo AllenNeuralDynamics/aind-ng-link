@@ -3,8 +3,11 @@ Class to represent a layer of a configuration state to visualize images in neuro
 """
 from pathlib import Path
 from typing import Dict, List, Optional, Union, get_args
-
+import neuroglancer
+from neuroglancer import write_annotations
 import numpy as np
+import shutil
+from utils import utils
 
 # IO types
 PathLike = Union[str, Path]
@@ -98,9 +101,11 @@ class AnnotationLayer:
 
     def __init__(
         self,
-        annotation_source: str,
+        annotation_source: Union[str, dict],
         annotation_locations: List[dict],
         output_dimensions: dict,
+        mount_service: str,
+        bucket_path: str,
         layer_type: Optional[str] = "annotation",
         limits: Optional[List[int]] = None,
     ) -> None:
@@ -109,7 +114,7 @@ class AnnotationLayer:
 
         Parameters
         ------------------------
-        annotation_source: str
+        annotation_source: Union[str, dict]
             Location of the annotation layer information
 
         annotation_locations: List[dict]
@@ -120,6 +125,12 @@ class AnnotationLayer:
             Dictionary with the output dimensions of the layer.
             Note: The axis order indicates where the points
             will be placed.
+        
+        mount_service: Optional[str]
+            This parameter could be 'gs' referring to a bucket in Google Cloud or 's3'in Amazon.
+
+        bucket_path: str
+            Path in cloud service where the dataset will be saved
 
         layer_type: str
             Layer type. Default: annotation
@@ -131,6 +142,8 @@ class AnnotationLayer:
         self.__layer_state = {}
         self.annotation_source = annotation_source
         self.annotation_locations = annotation_locations
+        self.mount_service = mount_service
+        self.bucket_path = bucket_path
         self.layer_type = layer_type
         self.limits = limits
 
@@ -141,13 +154,50 @@ class AnnotationLayer:
         )
         self.update_state()
 
-    def set_annotation_source(self, source: dict) -> dict:
+    def __set_s3_path(self, orig_source_path: PathLike) -> str:
+        """
+        Private method to set a s3 path based on a source path.
+        Available image formats: ['.zarr']
+
+        Parameters
+        ------------------------
+        orig_source_path: PathLike
+            Source path of the image
+
+        Raises
+        ------------------------
+        NotImplementedError:
+            Raises if the image format is not zarr.
+
+        Returns
+        ------------------------
+        str
+            String with the source path pointing to the mount service in the cloud
+        """
+
+        s3_path = None
+        if not orig_source_path.startswith(f"{self.mount_service}://"):
+            orig_source_path = Path(orig_source_path)
+            s3_path = (
+                f"{self.mount_service}://{self.bucket_path}/{orig_source_path}"
+            )
+
+        else:
+            s3_path = orig_source_path
+
+        return s3_path
+
+    def set_annotation_source(
+        self,
+        source: Union[str, dict],
+        output_dimensions: dict
+    ) -> dict:
         """
         Sets the annotation source.
 
         Parameters
         ---------------
-        source: dict
+        source: Union[str, dict]
             Dictionary with the annotation source
 
         Returns
@@ -157,10 +207,73 @@ class AnnotationLayer:
         """
 
         actual_state = self.__layer_state
-        actual_state["source"] = source
+
+        if "precomputed://" in source:
+            axis = list(output_dimensions.keys())
+            values = list(output_dimensions.values())
+
+            names = []
+            units = []
+            scales = []
+
+            for axis_idx in range(len(axis)):
+                if axis[axis_idx] == "t" or axis[axis_idx] == "c'":
+                    continue
+                
+                names.append(axis[axis_idx])
+                scales.append(values[axis_idx][0])
+                units.append(values[axis_idx][1])
+
+            write_path = Path(source.replace("precomputed://", ''))
+
+            coord_space = neuroglancer.CoordinateSpace(
+                names=names,
+                units=units,
+                scales=scales
+            )
+            
+            writer = write_annotations.AnnotationWriter(
+                coordinate_space=coord_space,
+                annotation_type='point'
+            )
+
+            for point in self.annotation_locations:
+                writer.add_point([
+                    int(point[axis[0]]),
+                    int(point[axis[1]]),
+                    int(point[axis[2]])
+                ])
+            
+            print("Write path: ", write_path)
+
+            writer.write(write_path)
+
+            shutil.make_archive(
+                write_path.joinpath("by_id"),
+                "zip",
+                write_path
+            )
+
+            utils.delete_folder(write_path.joinpath("by_id"))
+
+            s3_path = self.__set_s3_path(
+                str(write_path)
+            )
+
+            actual_state["source"] = f"precomputed://{s3_path}"
+
+        else:
+
+            actual_state["source"] = source
+            actual_state = self.__set_transform(self.output_dimensions)
+
         return actual_state
 
-    def set_transform(self, output_dimensions: dict) -> dict:
+    def __set_transform(
+        self,
+        layer_state: dict,
+        output_dimensions: dict
+    ) -> dict:
         """
         Sets the output dimensions and transformation
         to the annotation layer.
@@ -179,7 +292,7 @@ class AnnotationLayer:
             Dictionary with the modified layer.
         """
 
-        actual_state = self.__layer_state
+        actual_state = layer_state.copy()
         actual_state["source"]["transform"] = {
             "outputDimensions": output_dimensions
         }
@@ -360,17 +473,19 @@ class AnnotationLayer:
         Updates the state of the layer
         """
 
-        self.__layer_state = self.set_annotation_source(self.annotation_source)
+        self.__layer_state = self.set_annotation_source(
+            self.annotation_source,
+            self.output_dimensions
+        )
 
-        self.__layer_state = self.set_transform(self.output_dimensions)
+        if isinstance(self.annotation_source, dict):
+            self.__layer_state = self.set_annotations(
+                self.annotation_locations, "points", self.limits
+            )
 
         self.__layer_state = self.set_tool("annotatePoint")
 
         self.__layer_state = self.set_tab_name("annotations")
-
-        self.__layer_state = self.set_annotations(
-            self.annotation_locations, "points", self.limits
-        )
 
         self.__layer_state = self.set_layer_name("annotationLayer")
 
@@ -470,6 +585,14 @@ class ImageLayer:
 
         s3_path = None
         if not orig_source_path.startswith(f"{self.mount_service}://"):
+
+            # Work with code ocean
+            if "/scratch/" in orig_source_path:
+                orig_source_path = orig_source_path.replace("/scratch/", "")
+            
+            elif "/results/" in orig_source_path:
+                orig_source_path = orig_source_path.replace("/results/", "")
+
             orig_source_path = Path(orig_source_path)
             s3_path = (
                 f"{self.mount_service}://{self.bucket_path}/{orig_source_path}"

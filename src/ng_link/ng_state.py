@@ -239,6 +239,8 @@ class NgState:
                     "layer_type": layer["type"],
                     "output_dimensions": self.dimensions,
                     "limits": layer["limits"] if "limits" in layer else None,
+                    "mount_service": self.mount_service,
+                    "bucket_path": self.bucket_path,
                 }
 
             self.__layers.append(NgLayer().create(config).layer_state)
@@ -617,17 +619,7 @@ def example_2():
                 },
                 "visible": True,  # Optional
                 "opacity": 0.50,
-            },
-            {
-                "type": "annotation",  # Optional
-                "source": {"url": "local://annotations"},
-                "tool": "annotatePoint",
-                "name": "annotation_name_layer",
-                "annotations": [
-                    [1865, 4995, 3646, 0.5, 0.5],
-                    [1865, 4985, 3641, 0.5, 0.5],
-                ],
-            },
+            }
         ],
         "showScaleBar": False,
         "showAxisLines": False,
@@ -671,13 +663,13 @@ def example_3(cells):
             },
             {
                 "type": "annotation",
-                "source": {"url": "local://annotations"},
+                "source": "precomputed:///Users/camilo.laiton/repositories/aind-ng-link/src/precomputed",
                 "tool": "annotatePoint",
                 "name": "annotation_name_layer",
                 "annotations": cells,
                 # Pass None or delete limits if
                 # you want to include all the points
-                "limits": [100, 200],  # None # erase line
+                # "limits": [100, 200],  # None # erase line
             },
         ],
     }
@@ -701,12 +693,13 @@ def examples():
     """
     Examples of how to use the neurglancer state class.
     """
-    example_1()
+    # example_1()
 
     # Transformation matrix can be a dictionary with the axis translations
     # or a affine transformation (list of lists)
+    # example_2()
 
-    cells_path = "/Users/camilo.laiton/Downloads/detected_cells.xml"
+    cells_path = "/Users/camilo.laiton/Downloads/detected_cells (5).xml"
     cells = get_points_from_xml(cells_path)
 
     example_3(cells)
