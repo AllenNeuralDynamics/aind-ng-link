@@ -7,6 +7,7 @@ from typing import List, Optional, Union
 
 import xmltodict
 from pint import UnitRegistry
+import numpy as np
 
 from .ng_layer import NgLayer
 from .utils import utils
@@ -637,7 +638,6 @@ def example_2():
     neuroglancer_link.save_state_as_json()
     print(neuroglancer_link.get_url_link())
 
-
 def example_3(cells):
     """
     Example 3 with the annotation layer
@@ -688,6 +688,154 @@ def example_3(cells):
     print(neuroglancer_link.get_url_link())
 
 
+def dispim_example():
+    """
+    Example related to the dispim data
+    """
+    def generate_source_list(
+        s3_path: str,
+        channel_name: str,
+        camera_index: str,
+        n_tiles: int,
+        affine_transform: list,
+        translation_deltas: list
+    ) -> list:
+        multisource_layer = []
+        n_rows = 5
+        # Affine transformation without translation
+        # and in ng format tczyx usually, check output dims.
+
+        list_n_tiles = range(0, n_tiles+1)
+        shift = 1
+
+        if camera_index:
+            list_n_tiles = range(n_tiles, -1, -1)
+            shift = -1
+        
+        new_affine_transform = affine_transform.copy()
+
+        for n_tile in list_n_tiles:
+            
+            n_tile = str(n_tile)
+
+            if len(n_tile) == 1:
+                n_tile = "0" + str(n_tile)
+
+            tile_name = f"{s3_path}/tile_X_00{n_tile}_Y_0000_Z_0000_CH_{channel_name}_cam{camera_index}.zarr"
+
+            if n_tile:
+                start_point = n_rows - 1
+                
+                new_translation_deltas = list(
+                    map(
+                        lambda delta: delta * shift * int(n_tile),
+                        translation_deltas
+                    )
+                )
+
+                # Setting translations for axis
+                for delta in new_translation_deltas:
+                    new_affine_transform[start_point][-1] = delta
+                    start_point -= 1
+
+            else:
+                new_affine_transform = affine_transform.copy()
+
+            multisource_layer.append({
+                "url": tile_name,
+                "transform_matrix": new_affine_transform.tolist()
+            })
+        
+        return multisource_layer
+
+    # t  c  z  y  x  T
+    ng_affine_transform = np.zeros((5, 6), np.float16)
+    np.fill_diagonal(ng_affine_transform, 1)
+
+    theta = 45
+
+    # Adding shearing
+    shearing_zx = np.tan(np.deg2rad(theta))
+    ng_affine_transform[2, 4] = shearing_zx
+
+    translation_x = 0
+    translation_y = 1140
+    translation_z = 0
+
+    # Parameters
+    s3_path = "s3://aind-open-data/647459-Sert-488-Gad2-546-Vglut3-647-ID_2022_12_07_rechunked/diSPIM/micr"
+    channel_names = ["0405", "0488", "0561"]
+    colors = ["#3f2efe", "#58fea1", "#f15211"]
+    camera_indexes = [1]#, 1]
+    n_tiles = 13 # 13
+    
+    layers = []
+    visible = True
+
+    for camera_index in camera_indexes:
+
+        if camera_index == 1:
+            # Mirror Z stack and apply same angle for cam0
+            ng_affine_transform[2, 2] = -1
+        
+        # elif camera_index ==  1:
+        #     # No mirror for camera 1
+        #     ng_affine_transform[2, 2] = 1
+
+        for channel_name_idx in range(len(channel_names)):
+            layers.append(
+                {
+                    "type": "image",  # Optional
+                    "source": generate_source_list(
+                        s3_path=s3_path,
+                        channel_name=channel_names[channel_name_idx],
+                        camera_index=camera_index,
+                        n_tiles=n_tiles,
+                        affine_transform=ng_affine_transform,
+                        translation_deltas=[
+                            translation_x,
+                            translation_y,
+                            translation_z
+                        ]
+                    ),
+                    "channel": 0,  # Optional
+                    "shaderControls": {  # Optional
+                        "normalized": {"range": [0, 800]}
+                    },
+                    "shader": {"color": colors[channel_name_idx], "emitter": "RGB", "vec": "vec3"},
+                    "visible": visible,  # Optional
+                    "opacity": 0.50,
+                    "name": f"CH_{channel_names[channel_name_idx]}_CAM{camera_index}"
+                }
+            )
+
+    example_data = {
+        "dimensions": {
+            # check the order
+            "x": {"voxel_size": 0.298, "unit": "microns"},
+            "y": {"voxel_size": 0.298, "unit": "microns"},
+            "z": {"voxel_size": 0.176, "unit": "microns"},
+            "c'": {"voxel_size": 1, "unit": ""},
+            "t": {"voxel_size": 0.001, "unit": "seconds"}
+        },
+        "layers": layers,
+        "showScaleBar": False,
+        "showAxisLines": False
+    }
+
+    neuroglancer_link = NgState(
+        input_config=example_data,
+        mount_service="s3",
+        bucket_path="aind-msma-data",
+        output_json="/Users/camilo.laiton/repositories/aind-ng-link/src",
+    )
+
+    data = neuroglancer_link.state
+    # print(data)
+    neuroglancer_link.save_state_as_json()
+    print(neuroglancer_link.get_url_link())
+
+
 # flake8: noqa: E501
 def examples():
     """
@@ -699,10 +847,11 @@ def examples():
     # or a affine transformation (list of lists)
     # example_2()
 
-    cells_path = "/Users/camilo.laiton/Downloads/detected_cells (5).xml"
-    cells = get_points_from_xml(cells_path)
+    # cells_path = "/Users/camilo.laiton/Downloads/detected_cells (5).xml"
+    # cells = get_points_from_xml(cells_path)
 
-    example_3(cells)
+    # example_3(cells)
+    dispim_example()
 
 
 if __name__ == "__main__":
