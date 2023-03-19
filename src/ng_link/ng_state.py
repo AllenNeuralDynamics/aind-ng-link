@@ -450,7 +450,7 @@ def get_points_from_xml(path: PathLike, encoding: str = "utf-8") -> List[dict]:
     return new_cell_data
 
 
-def example_1():
+def smartspim_example():
     """
     Example one related to the SmartSPIM data
     """
@@ -500,7 +500,7 @@ def example_1():
     print(neuroglancer_link.get_url_link())
 
 
-def example_2():
+def exaspim_example():
     """
     Example 2 related to the ExaSPIM data
     """
@@ -763,10 +763,10 @@ def dispim_example():
     translation_z = 0
 
     # Parameters
-    s3_path = "s3://aind-open-data/647459-Sert-488-Gad2-546-Vglut3-647-ID_2022_12_07_rechunked/diSPIM/micr"
+    s3_path = "s3://aind-open-data/diSPIM_647459_2022-12-07_00-00-00/diSPIM.zarr"
     channel_names = ["0405", "0488", "0561"]
     colors = ["#3f2efe", "#58fea1", "#f15211"]
-    camera_indexes = [1]#, 1]
+    camera_indexes = [0]#, 1]
     n_tiles = 13 # 13
     
     layers = []
