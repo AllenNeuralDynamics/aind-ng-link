@@ -10,9 +10,10 @@ import time
 from multiprocessing.managers import BaseManager, NamespaceProxy
 from pathlib import Path
 from typing import Dict, List, Optional, Union, get_args
-
 import neuroglancer
 import numpy as np
+import shutil
+from utils import utils
 
 from .utils import utils
 
@@ -294,6 +295,12 @@ class AnnotationLayer:
             Dictionary with the output dimensions of the layer.
             Note: The axis order indicates where the points
             will be placed.
+        
+        mount_service: Optional[str]
+            This parameter could be 'gs' referring to a bucket in Google Cloud or 's3'in Amazon.
+
+        bucket_path: str
+            Path in cloud service where the dataset will be saved
 
         mount_service: Optional[str]
             This parameter could be 'gs' referring to a bucket in Google Cloud or 's3'in Amazon.

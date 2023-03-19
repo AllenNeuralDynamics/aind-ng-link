@@ -8,6 +8,7 @@ from typing import List, Optional, Union
 import numpy as np
 import xmltodict
 from pint import UnitRegistry
+import numpy as np
 
 from .ng_layer import NgLayer
 from .utils import utils
@@ -638,7 +639,6 @@ def exaspim_example():
     neuroglancer_link.save_state_as_json()
     print(neuroglancer_link.get_url_link())
 
-
 def example_3(cells):
     """
     Example 3 with the annotation layer
@@ -734,13 +734,13 @@ def dispim_example():
             List with the source layers for
             neuroglancer
         """
-
         multisource_layer = []
         n_rows = 5
         # Affine transformation without translation
         # and in ng format tczyx usually, check output dims.
 
         list_n_tiles = range(0, n_tiles + 1)
+
         shift = 1
 
         if camera_index:
@@ -807,7 +807,6 @@ def dispim_example():
     colors = ["#3f2efe", "#58fea1", "#f15211"]
     camera_indexes = [0]  # , 1]
     n_tiles = 13  # 13
-
     layers = []
     visible = True
 
@@ -836,6 +835,7 @@ def dispim_example():
                             translation_y,
                             translation_z,
                         ],
+
                     ),
                     "channel": 0,  # Optional
                     "shaderControls": {  # Optional
