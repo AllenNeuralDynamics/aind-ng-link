@@ -1,14 +1,186 @@
 """
 Class to represent a layer of a configuration state to visualize images in neuroglancer
 """
+import inspect
+import json
+import multiprocessing
+import os
+import struct
+import time
+from multiprocessing.managers import BaseManager, NamespaceProxy
 from pathlib import Path
 from typing import Dict, List, Optional, Union, get_args
 
+import neuroglancer
 import numpy as np
+
+from .utils import utils
 
 # IO types
 PathLike = Union[str, Path]
 SourceLike = Union[PathLike, List[Dict]]
+
+
+class ObjProxy(NamespaceProxy):
+    """Returns a proxy instance for any user defined data-type. The proxy instance will have the namespace and
+    functions of the data-type (except private/protected callables/attributes). Furthermore, the proxy will be
+    pickable and can its state can be shared among different processes."""
+
+    @classmethod
+    def populate_obj_attributes(cls, real_cls):
+        """
+        Populates attributes of the proxy object
+        """
+        DISALLOWED = set(dir(cls))
+        ALLOWED = [
+            "__sizeof__",
+            "__eq__",
+            "__ne__",
+            "__le__",
+            "__repr__",
+            "__dict__",
+            "__lt__",
+            "__gt__",
+        ]
+        DISALLOWED.add("__class__")
+        new_dict = {}
+        for (attr, value) in inspect.getmembers(real_cls, callable):
+            if attr not in DISALLOWED or attr in ALLOWED:
+                new_dict[attr] = cls._proxy_wrap(attr)
+        return new_dict
+
+    @staticmethod
+    def _proxy_wrap(attr):
+        """
+        This method creates function that calls the proxified object's method.
+        """
+
+        def f(self, *args, **kwargs):
+            """
+            Function that calls the proxified object's method.
+            """
+            return self._callmethod(attr, args, kwargs)
+
+        return f
+
+
+def buf_builder(x, y, z, buf_):
+    """builds the buffer"""
+    pt_buf = struct.pack("<3f", x, y, z)
+    buf_.extend(pt_buf)
+
+
+attributes = ObjProxy.populate_obj_attributes(bytearray)
+bytearrayProxy = type("bytearrayProxy", (ObjProxy,), attributes)
+
+
+def generate_precomputed_cells(cells, path, res):
+    """
+    Function for saving precomputed annotation layer
+
+    Parameters
+    -----------------
+
+    cells: dict
+        output of the xmltodict function for importing cell locations
+    path: str
+        path to where you want to save the precomputed files
+    res: neuroglancer.CoordinateSpace()
+        data on the space that the data will be viewed
+    buf: bytearrayProxy object
+        if you want to use multiprocessing set to bytearrayProxy object else
+        leave as None
+
+    """
+
+    BaseManager.register(
+        "bytearray",
+        bytearray,
+        bytearrayProxy,
+        exposed=tuple(dir(bytearrayProxy)),
+    )
+    manager = BaseManager()
+    manager.start()
+
+    buf = manager.bytearray()
+
+    cell_list = []
+    for cell in cells:
+        cell_list.append([int(cell["z"]), int(cell["y"]), int(cell["x"])])
+
+    l_bounds = np.min(cell_list, axis=0)
+    u_bounds = np.max(cell_list, axis=0)
+
+    output_path = os.path.join(path, "spatial0")
+    utils.create_folder(output_path)
+
+    metadata = {
+        "@type": "neuroglancer_annotations_v1",
+        "dimensions": res.to_json(),
+        "lower_bound": [float(x) for x in l_bounds],
+        "upper_bound": [float(x) for x in u_bounds],
+        "annotation_type": "point",
+        "properties": [],
+        "relationships": [],
+        "by_id": {
+            "key": "by_id",
+        },
+        "spatial": [
+            {
+                "key": "spatial0",
+                "grid_shape": [1] * res.rank,
+                "chunk_size": [max(1, float(x)) for x in u_bounds - l_bounds],
+                "limit": len(cells),
+            },
+        ],
+    }
+
+    with open(os.path.join(path, "info"), "w") as f:
+        f.write(json.dumps(metadata))
+
+    with open(os.path.join(output_path, "0_0_0"), "wb") as outfile:
+
+        start_t = time.time()
+
+        total_count = len(cell_list)  # coordinates is a list of tuples (x,y,z)
+
+        print("Running multiprocessing")
+
+        if not isinstance(buf, type(None)):
+
+            buf.extend(struct.pack("<Q", total_count))
+
+            with multiprocessing.Pool(processes=os.cpu_count()) as p:
+                p.starmap(
+                    buf_builder, [(x, y, z, buf) for (x, y, z) in cell_list]
+                )
+
+            # write the ids at the end of the buffer as increasing integers
+            id_buf = struct.pack(
+                "<%sQ" % len(cell_list), *range(len(cell_list))
+            )
+            buf.extend(id_buf)
+        else:
+
+            buf = struct.pack("<Q", total_count)
+
+            for (x, y, z) in cell_list:
+                pt_buf = struct.pack("<3f", x, y, z)
+                buf += pt_buf
+
+            # write the ids at the end of the buffer as increasing integers
+            id_buf = struct.pack(
+                "<%sQ" % len(cell_list), *range(len(cell_list))
+            )
+            buf += id_buf
+
+        print(
+            "Building file took {0} minutes".format(
+                (time.time() - start_t) / 60
+            )
+        )
+
+        outfile.write(bytes(buf))
 
 
 def helper_create_ng_translation_matrix(
@@ -98,9 +270,11 @@ class AnnotationLayer:
 
     def __init__(
         self,
-        annotation_source: str,
+        annotation_source: Union[str, dict],
         annotation_locations: List[dict],
         output_dimensions: dict,
+        mount_service: str,
+        bucket_path: str,
         layer_type: Optional[str] = "annotation",
         limits: Optional[List[int]] = None,
     ) -> None:
@@ -109,7 +283,7 @@ class AnnotationLayer:
 
         Parameters
         ------------------------
-        annotation_source: str
+        annotation_source: Union[str, dict]
             Location of the annotation layer information
 
         annotation_locations: List[dict]
@@ -121,6 +295,12 @@ class AnnotationLayer:
             Note: The axis order indicates where the points
             will be placed.
 
+        mount_service: Optional[str]
+            This parameter could be 'gs' referring to a bucket in Google Cloud or 's3'in Amazon.
+
+        bucket_path: str
+            Path in cloud service where the dataset will be saved
+
         layer_type: str
             Layer type. Default: annotation
 
@@ -131,6 +311,8 @@ class AnnotationLayer:
         self.__layer_state = {}
         self.annotation_source = annotation_source
         self.annotation_locations = annotation_locations
+        self.mount_service = mount_service
+        self.bucket_path = bucket_path
         self.layer_type = layer_type
         self.limits = limits
 
@@ -141,13 +323,48 @@ class AnnotationLayer:
         )
         self.update_state()
 
-    def set_annotation_source(self, source: dict) -> dict:
+    def __set_s3_path(self, orig_source_path: PathLike) -> str:
+        """
+        Private method to set a s3 path based on a source path.
+        Available image formats: ['.zarr']
+
+        Parameters
+        ------------------------
+        orig_source_path: PathLike
+            Source path of the image
+
+        Raises
+        ------------------------
+        NotImplementedError:
+            Raises if the image format is not zarr.
+
+        Returns
+        ------------------------
+        str
+            String with the source path pointing to the mount service in the cloud
+        """
+
+        s3_path = None
+        if not orig_source_path.startswith(f"{self.mount_service}://"):
+            orig_source_path = Path(orig_source_path)
+            s3_path = (
+                f"{self.mount_service}://{self.bucket_path}/{orig_source_path}"
+            )
+
+        else:
+            s3_path = orig_source_path
+
+        return s3_path
+
+    def set_annotation_source(
+        self, source: Union[str, dict], output_dimensions: dict
+    ) -> dict:
         """
         Sets the annotation source.
 
         Parameters
         ---------------
-        source: dict
+        source: Union[str, dict]
             Dictionary with the annotation source
 
         Returns
@@ -157,10 +374,50 @@ class AnnotationLayer:
         """
 
         actual_state = self.__layer_state
-        actual_state["source"] = source
+
+        if "precomputed://" in source:
+            axis = list(output_dimensions.keys())
+            values = list(output_dimensions.values())
+
+            names = []
+            units = []
+            scales = []
+
+            for axis_idx in range(len(axis)):
+                if axis[axis_idx] == "t" or axis[axis_idx] == "c'":
+                    continue
+
+                names.append(axis[axis_idx])
+                scales.append(values[axis_idx][0])
+                units.append(values[axis_idx][1])
+
+            write_path = Path(source.replace("precomputed://", ""))
+
+            coord_space = neuroglancer.CoordinateSpace(
+                names=names, units=units, scales=scales
+            )
+
+            print("Write path: ", write_path)
+
+            # Generates the precomputed format
+            generate_precomputed_cells(
+                self.annotation_locations, write_path, coord_space
+            )
+
+            s3_path = self.__set_s3_path(str(write_path))
+
+            actual_state["source"] = f"precomputed://{s3_path}"
+
+        else:
+
+            actual_state["source"] = source
+            actual_state = self.__set_transform(self.output_dimensions)
+
         return actual_state
 
-    def set_transform(self, output_dimensions: dict) -> dict:
+    def __set_transform(
+        self, layer_state: dict, output_dimensions: dict
+    ) -> dict:
         """
         Sets the output dimensions and transformation
         to the annotation layer.
@@ -179,7 +436,7 @@ class AnnotationLayer:
             Dictionary with the modified layer.
         """
 
-        actual_state = self.__layer_state
+        actual_state = layer_state.copy()
         actual_state["source"]["transform"] = {
             "outputDimensions": output_dimensions
         }
@@ -360,17 +617,18 @@ class AnnotationLayer:
         Updates the state of the layer
         """
 
-        self.__layer_state = self.set_annotation_source(self.annotation_source)
+        self.__layer_state = self.set_annotation_source(
+            self.annotation_source, self.output_dimensions
+        )
 
-        self.__layer_state = self.set_transform(self.output_dimensions)
+        if isinstance(self.annotation_source, dict):
+            self.__layer_state = self.set_annotations(
+                self.annotation_locations, "points", self.limits
+            )
 
         self.__layer_state = self.set_tool("annotatePoint")
 
         self.__layer_state = self.set_tab_name("annotations")
-
-        self.__layer_state = self.set_annotations(
-            self.annotation_locations, "points", self.limits
-        )
 
         self.__layer_state = self.set_layer_name("annotationLayer")
 
@@ -470,6 +728,14 @@ class ImageLayer:
 
         s3_path = None
         if not orig_source_path.startswith(f"{self.mount_service}://"):
+
+            # Work with code ocean
+            if "/scratch/" in orig_source_path:
+                orig_source_path = orig_source_path.replace("/scratch/", "")
+
+            elif "/results/" in orig_source_path:
+                orig_source_path = orig_source_path.replace("/results/", "")
+
             orig_source_path = Path(orig_source_path)
             s3_path = (
                 f"{self.mount_service}://{self.bucket_path}/{orig_source_path}"

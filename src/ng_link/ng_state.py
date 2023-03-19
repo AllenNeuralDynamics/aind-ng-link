@@ -5,6 +5,7 @@ import re
 from pathlib import Path
 from typing import List, Optional, Union
 
+import numpy as np
 import xmltodict
 from pint import UnitRegistry
 
@@ -14,17 +15,6 @@ from .utils import utils
 # IO types
 PathLike = Union[str, Path]
 
-#Added for example 3
-import os
-import json
-import time
-import struct
-import random
-import inspect
-import neuroglancer
-import multiprocessing
-import numpy as np
-from multiprocessing.managers import NamespaceProxy, BaseManager
 
 class NgState:
     """
@@ -250,9 +240,10 @@ class NgState:
                     "layer_type": layer["type"],
                     "output_dimensions": self.dimensions,
                     "limits": layer["limits"] if "limits" in layer else None,
+                    "mount_service": self.mount_service,
+                    "bucket_path": self.bucket_path,
                 }
-                
-            #changed to work with library notation NL
+
             self.__layers.append(NgLayer().create(config).layer_state)
 
     @property
@@ -459,43 +450,7 @@ def get_points_from_xml(path: PathLike, encoding: str = "utf-8") -> List[dict]:
     return new_cell_data
 
 
-#==============================================================================
-# paralell functions
-#==============================================================================
-
-class ObjProxy(NamespaceProxy):
-    """Returns a proxy instance for any user defined data-type. The proxy instance will have the namespace and
-    functions of the data-type (except private/protected callables/attributes). Furthermore, the proxy will be
-    pickable and can its state can be shared among different processes. """
-
-    @classmethod
-    def populate_obj_attributes(cls, real_cls):
-        DISALLOWED = set(dir(cls))
-        ALLOWED = ['__sizeof__', '__eq__', '__ne__', '__le__', '__repr__', '__dict__', '__lt__',
-                   '__gt__']
-        DISALLOWED.add('__class__')
-        new_dict = {}
-        for (attr, value) in inspect.getmembers(real_cls, callable):
-            if attr not in DISALLOWED or attr in ALLOWED:
-                new_dict[attr] = cls._proxy_wrap(attr)
-        return new_dict
-
-    @staticmethod
-    def _proxy_wrap(attr):
-        """ This method creates function that calls the proxified object's method."""
-
-        def f(self, *args, **kwargs):
-            return self._callmethod(attr, args, kwargs)
-
-        return f
-
-def buf_builder(x, y, z, buf_):
-    pt_buf = struct.pack('<3f', x, y, z)
-    buf_.extend(pt_buf)
-
-
-
-def example_1():
+def smartspim_example():
     """
     Example one related to the SmartSPIM data
     """
@@ -545,7 +500,7 @@ def example_1():
     print(neuroglancer_link.get_url_link())
 
 
-def example_2():
+def exaspim_example():
     """
     Example 2 related to the ExaSPIM data
     """
@@ -665,17 +620,7 @@ def example_2():
                 },
                 "visible": True,  # Optional
                 "opacity": 0.50,
-            },
-            {
-                "type": "annotation",  # Optional
-                "source": {"url": "local://annotations"},
-                "tool": "annotatePoint",
-                "name": "annotation_name_layer",
-                "annotations": [
-                    [1865, 4995, 3646, 0.5, 0.5],
-                    [1865, 4985, 3641, 0.5, 0.5],
-                ],
-            },
+            }
         ],
         "showScaleBar": False,
         "showAxisLines": False,
@@ -694,122 +639,263 @@ def example_2():
     print(neuroglancer_link.get_url_link())
 
 
-def example_3(cells, path, res, buf = None):
+def example_3(cells):
     """
-    Function for saving precomputed annotation layer
-
-    Parameters
-    -----------------
-
-    cells: dict
-        output of the xmltodict function for importing cell locations
-    path: str
-        path to where you want to save the precomputed files
-    res: neuroglancer.CoordinateSpace()
-        data on the space that the data will be viewed
-    buf: bytearrayProxy object
-        if you want to use multiprocessing set to bytearrayProxy object else 
-        leave as None
-        
+    Example 3 with the annotation layer
     """
-    
-    cell_list = []
-    for cell in cells:
-        cell_list.append([int(cell['z']), int(cell['y']), int(cell['x'])])
-    
-    l_bounds = np.min(cell_list, axis = 0)
-    u_bounds = np.max(cell_list, axis = 0)
-    
-    metadata = {
-        '@type': 'neuroglancer_annotations_v1',
-        'dimensions': res.to_json(),
-        'lower_bound': [float(x) for x in l_bounds],
-        'upper_bound': [float(x) for x in u_bounds],
-        'annotation_type':'point',
-        "properties" : [],
-        "relationships" : [],
-        'by_id': {'key': 'by_id',},
-        'spatial': [
+    example_data = {
+        "dimensions": {
+            # check the order
+            "z": {"voxel_size": 2.0, "unit": "microns"},
+            "y": {"voxel_size": 1.8, "unit": "microns"},
+            "x": {"voxel_size": 1.8, "unit": "microns"},
+            "t": {"voxel_size": 0.001, "unit": "seconds"},
+        },
+        "layers": [
             {
-                'key': 'spatial0',
-                'grid_shape': [1] * res.rank,
-                'chunk_size': [max(1, float(x)) for x in u_bounds - l_bounds],
-                'limit': len(cells),
+                "source": "image_path.zarr",
+                "type": "image",
+                "channel": 0,
+                # 'name': 'image_name_0',
+                "shader": {"color": "green", "emitter": "RGB", "vec": "vec3"},
+                "shaderControls": {  # Optional
+                    "normalized": {"range": [0, 500]}
+                },
+            },
+            {
+                "type": "annotation",
+                "source": "precomputed:///Users/camilo.laiton/repositories/aind-ng-link/src/precomputed",
+                "tool": "annotatePoint",
+                "name": "annotation_name_layer",
+                "annotations": cells,
+                # Pass None or delete limits if
+                # you want to include all the points
+                # "limits": [100, 200],  # None # erase line
             },
         ],
     }
-    
-    with open(os.path.join(path, 'info'), 'w') as f:
-        f.write(json.dumps(metadata))
-    
-   
-    with open(os.path.join(path, 'spatial0', '0_0_0'),'wb') as outfile:
-        
-        start_t = time.time()
-        
-        total_count=len(cell_list) # coordinates is a list of tuples (x,y,z) 
 
-        
-        print("Running multiprocessing")
-        
-        if not isinstance(buf, type(None)):
-            
-            buf.extend(struct.pack('<Q',total_count))
-            
-            with multiprocessing.Pool(processes = os.cpu_count()) as p:
-                p.starmap(buf_builder, [(x, y, z, buf) for (x, y, z) in cell_list])
-                
-            # write the ids at the end of the buffer as increasing integers 
-            id_buf = struct.pack('<%sQ' % len(cell_list), *range(len(cell_list)))
-            buf.extend(id_buf)
-        else:
-            
-            buf = struct.pack('<Q',total_count)
-            
-            for (x,y,z) in cell_list:
-                pt_buf = struct.pack('<3f',x,y,z)
-                buf += pt_buf
-                
-            # write the ids at the end of the buffer as increasing integers 
-            id_buf = struct.pack('<%sQ' % len(cell_list), *range(len(cell_list)))
-            buf += id_buf
-            
-        print("Building file took {0} minutes".format((time.time() - start_t) / 60))
-        
-        outfile.write(bytes(buf))
-        
+    neuroglancer_link = NgState(
+        input_config=example_data,
+        mount_service="s3",
+        bucket_path="aind-msma-data",
+        output_json="/Users/camilo.laiton/repositories/aind-ng-link/src",
+    )
+
+    data = neuroglancer_link.state
+    print(data)
+    # neuroglancer_link.save_state_as_json('test.json')
+    neuroglancer_link.save_state_as_json()
+    print(neuroglancer_link.get_url_link())
+
+
+def dispim_example():
+    """
+    Example related to the dispim data
+    """
+
+    def generate_source_list(
+        s3_path: str,
+        channel_name: str,
+        camera_index: str,
+        n_tiles: int,
+        affine_transform: list,
+        translation_deltas: list,
+    ) -> list:
+        """
+        Example to generate layers with
+        an affine transformation
+
+        Parameters
+        ----------
+        s3_path: str
+            Path in S3 where the images are stored
+
+        channel_name: str
+            Channel name of the dataset
+
+        camera_index: str
+            Camera index of the dataset
+
+        n_tiles: int
+            Number of tiles in the dataset
+
+        affine_transform: list
+            List with the affine transformation
+            that will be applied in the data
+
+        translation_deltas: list
+            List with the translation per axis
+            xyz
+
+        Returns
+        -------
+        list
+            List with the source layers for
+            neuroglancer
+        """
+
+        multisource_layer = []
+        n_rows = 5
+        # Affine transformation without translation
+        # and in ng format tczyx usually, check output dims.
+
+        list_n_tiles = range(0, n_tiles + 1)
+        shift = 1
+
+        if camera_index:
+            list_n_tiles = range(n_tiles, -1, -1)
+            shift = -1
+
+        new_affine_transform = affine_transform.copy()
+
+        for n_tile in list_n_tiles:
+
+            n_tile = str(n_tile)
+
+            if len(n_tile) == 1:
+                n_tile = "0" + str(n_tile)
+
+            tile_name = f"{s3_path}/tile_X_00{n_tile}_Y_0000_Z_0000_CH_{channel_name}_cam{camera_index}.zarr"
+
+            if n_tile:
+                start_point = n_rows - 1
+
+                new_translation_deltas = list(
+                    map(
+                        lambda delta: delta * shift * int(n_tile),
+                        translation_deltas,
+                    )
+                )
+
+                # Setting translations for axis
+                for delta in new_translation_deltas:
+                    new_affine_transform[start_point][-1] = delta
+                    start_point -= 1
+
+            else:
+                new_affine_transform = affine_transform.copy()
+
+            multisource_layer.append(
+                {
+                    "url": tile_name,
+                    "transform_matrix": new_affine_transform.tolist(),
+                }
+            )
+
+        return multisource_layer
+
+    # t  c  z  y  x  T
+    ng_affine_transform = np.zeros((5, 6), np.float16)
+    np.fill_diagonal(ng_affine_transform, 1)
+
+    theta = 45
+
+    # Adding shearing
+    shearing_zx = np.tan(np.deg2rad(theta))
+    ng_affine_transform[2, 4] = shearing_zx
+
+    translation_x = 0
+    translation_y = 1140
+    translation_z = 0
+
+    # Parameters
+    s3_path = (
+        "s3://aind-open-data/diSPIM_647459_2022-12-07_00-00-00/diSPIM.zarr"
+    )
+    channel_names = ["0405", "0488", "0561"]
+    colors = ["#3f2efe", "#58fea1", "#f15211"]
+    camera_indexes = [0]  # , 1]
+    n_tiles = 13  # 13
+
+    layers = []
+    visible = True
+
+    for camera_index in camera_indexes:
+
+        if camera_index == 1:
+            # Mirror Z stack and apply same angle for cam0
+            ng_affine_transform[2, 2] = -1
+
+        # elif camera_index ==  1:
+        #     # No mirror for camera 1
+        #     ng_affine_transform[2, 2] = 1
+
+        for channel_name_idx in range(len(channel_names)):
+            layers.append(
+                {
+                    "type": "image",  # Optional
+                    "source": generate_source_list(
+                        s3_path=s3_path,
+                        channel_name=channel_names[channel_name_idx],
+                        camera_index=camera_index,
+                        n_tiles=n_tiles,
+                        affine_transform=ng_affine_transform,
+                        translation_deltas=[
+                            translation_x,
+                            translation_y,
+                            translation_z,
+                        ],
+                    ),
+                    "channel": 0,  # Optional
+                    "shaderControls": {  # Optional
+                        "normalized": {"range": [0, 800]}
+                    },
+                    "shader": {
+                        "color": colors[channel_name_idx],
+                        "emitter": "RGB",
+                        "vec": "vec3",
+                    },
+                    "visible": visible,  # Optional
+                    "opacity": 0.50,
+                    "name": f"CH_{channel_names[channel_name_idx]}_CAM{camera_index}",
+                }
+            )
+
+    example_data = {
+        "dimensions": {
+            # check the order
+            "x": {"voxel_size": 0.298, "unit": "microns"},
+            "y": {"voxel_size": 0.298, "unit": "microns"},
+            "z": {"voxel_size": 0.176, "unit": "microns"},
+            "c'": {"voxel_size": 1, "unit": ""},
+            "t": {"voxel_size": 0.001, "unit": "seconds"},
+        },
+        "layers": layers,
+        "showScaleBar": False,
+        "showAxisLines": False,
+    }
+
+    neuroglancer_link = NgState(
+        input_config=example_data,
+        mount_service="s3",
+        bucket_path="aind-msma-data",
+        output_json="/Users/camilo.laiton/repositories/aind-ng-link/src",
+    )
+
+    data = neuroglancer_link.state
+    # print(data)
+    neuroglancer_link.save_state_as_json()
+    print(neuroglancer_link.get_url_link())
+
 
 # flake8: noqa: E501
-def examples(buf):
+def examples():
     """
     Examples of how to use the neurglancer state class.
     """
+    # example_1()
 
-    # location of segmentatio output and preprocessing for better visualization
-    cells_path = "/path/t0/detected_cells.xml"
+    # Transformation matrix can be a dictionary with the axis translations
+    # or a affine transformation (list of lists)
+    # example_2()
+
+    cells_path = "/Users/camilo.laiton/Downloads/detected_cells (5).xml"
     cells = get_points_from_xml(cells_path)
-    cells = random.shuffle(cells)
-    
-    # saving parameters
-    save_path = ""
-    res = neuroglancer.CoordinateSpace(
-            names=['z', 'y', 'x'],
-            units=['um', 'um', 'um'],
-            scales=[2, 1.8, 1.8])
-    
-    example_3(cells, save_path, res, buf)
+    example_3(cells)
 
-    return
+    # dispim_example()
 
-attributes = ObjProxy.populate_obj_attributes(bytearray)
-bytearrayProxy = type("bytearrayProxy", (ObjProxy,), attributes)
 
 if __name__ == "__main__":
-    
-    # set up manager for multiprocessing write directory
-    BaseManager.register('bytearray', bytearray, bytearrayProxy, exposed=tuple(dir(bytearrayProxy)))
-    manager = BaseManager()
-    manager.start()
-    buf = manager.bytearray()
-    
-    examples(buf)
+    examples()

@@ -21,7 +21,8 @@ dependencies = [
     'pandas',
     'sphinx',
     'pint',
-    'numpy'
+    'numpy',
+    'neuroglancer'
 ]
 
 [project.optional-dependencies]
