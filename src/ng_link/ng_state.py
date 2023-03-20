@@ -5,6 +5,7 @@ import re
 from pathlib import Path
 from typing import List, Optional, Union
 
+import numpy as np
 import xmltodict
 from pint import UnitRegistry
 import numpy as np
@@ -692,30 +693,64 @@ def dispim_example():
     """
     Example related to the dispim data
     """
+
     def generate_source_list(
         s3_path: str,
         channel_name: str,
         camera_index: str,
         n_tiles: int,
         affine_transform: list,
-        translation_deltas: list
+        translation_deltas: list,
     ) -> list:
+        """
+        Example to generate layers with
+        an affine transformation
+
+        Parameters
+        ----------
+        s3_path: str
+            Path in S3 where the images are stored
+
+        channel_name: str
+            Channel name of the dataset
+
+        camera_index: str
+            Camera index of the dataset
+
+        n_tiles: int
+            Number of tiles in the dataset
+
+        affine_transform: list
+            List with the affine transformation
+            that will be applied in the data
+
+        translation_deltas: list
+            List with the translation per axis
+            xyz
+
+        Returns
+        -------
+        list
+            List with the source layers for
+            neuroglancer
+        """
         multisource_layer = []
         n_rows = 5
         # Affine transformation without translation
         # and in ng format tczyx usually, check output dims.
 
-        list_n_tiles = range(0, n_tiles+1)
+        list_n_tiles = range(0, n_tiles + 1)
+
         shift = 1
 
         if camera_index:
             list_n_tiles = range(n_tiles, -1, -1)
             shift = -1
-        
+
         new_affine_transform = affine_transform.copy()
 
         for n_tile in list_n_tiles:
-            
+
             n_tile = str(n_tile)
 
             if len(n_tile) == 1:
@@ -725,11 +760,11 @@ def dispim_example():
 
             if n_tile:
                 start_point = n_rows - 1
-                
+
                 new_translation_deltas = list(
                     map(
                         lambda delta: delta * shift * int(n_tile),
-                        translation_deltas
+                        translation_deltas,
                     )
                 )
 
@@ -741,11 +776,13 @@ def dispim_example():
             else:
                 new_affine_transform = affine_transform.copy()
 
-            multisource_layer.append({
-                "url": tile_name,
-                "transform_matrix": new_affine_transform.tolist()
-            })
-        
+            multisource_layer.append(
+                {
+                    "url": tile_name,
+                    "transform_matrix": new_affine_transform.tolist(),
+                }
+            )
+
         return multisource_layer
 
     # t  c  z  y  x  T
@@ -763,12 +800,13 @@ def dispim_example():
     translation_z = 0
 
     # Parameters
-    s3_path = "s3://aind-open-data/diSPIM_647459_2022-12-07_00-00-00/diSPIM.zarr"
+    s3_path = (
+        "s3://aind-open-data/diSPIM_647459_2022-12-07_00-00-00/diSPIM.zarr"
+    )
     channel_names = ["0405", "0488", "0561"]
     colors = ["#3f2efe", "#58fea1", "#f15211"]
-    camera_indexes = [0]#, 1]
-    n_tiles = 13 # 13
-    
+    camera_indexes = [0]  # , 1]
+    n_tiles = 13  # 13
     layers = []
     visible = True
 
@@ -777,7 +815,7 @@ def dispim_example():
         if camera_index == 1:
             # Mirror Z stack and apply same angle for cam0
             ng_affine_transform[2, 2] = -1
-        
+
         # elif camera_index ==  1:
         #     # No mirror for camera 1
         #     ng_affine_transform[2, 2] = 1
@@ -795,17 +833,22 @@ def dispim_example():
                         translation_deltas=[
                             translation_x,
                             translation_y,
-                            translation_z
-                        ]
+                            translation_z,
+                        ],
+
                     ),
                     "channel": 0,  # Optional
                     "shaderControls": {  # Optional
                         "normalized": {"range": [0, 800]}
                     },
-                    "shader": {"color": colors[channel_name_idx], "emitter": "RGB", "vec": "vec3"},
+                    "shader": {
+                        "color": colors[channel_name_idx],
+                        "emitter": "RGB",
+                        "vec": "vec3",
+                    },
                     "visible": visible,  # Optional
                     "opacity": 0.50,
-                    "name": f"CH_{channel_names[channel_name_idx]}_CAM{camera_index}"
+                    "name": f"CH_{channel_names[channel_name_idx]}_CAM{camera_index}",
                 }
             )
 
@@ -816,11 +859,11 @@ def dispim_example():
             "y": {"voxel_size": 0.298, "unit": "microns"},
             "z": {"voxel_size": 0.176, "unit": "microns"},
             "c'": {"voxel_size": 1, "unit": ""},
-            "t": {"voxel_size": 0.001, "unit": "seconds"}
+            "t": {"voxel_size": 0.001, "unit": "seconds"},
         },
         "layers": layers,
         "showScaleBar": False,
-        "showAxisLines": False
+        "showAxisLines": False,
     }
 
     neuroglancer_link = NgState(
@@ -847,11 +890,11 @@ def examples():
     # or a affine transformation (list of lists)
     # example_2()
 
-    # cells_path = "/Users/camilo.laiton/Downloads/detected_cells (5).xml"
-    # cells = get_points_from_xml(cells_path)
+    cells_path = "/Users/camilo.laiton/Downloads/detected_cells (5).xml"
+    cells = get_points_from_xml(cells_path)
+    example_3(cells)
 
-    # example_3(cells)
-    dispim_example()
+    # dispim_example()
 
 
 if __name__ == "__main__":
