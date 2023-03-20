@@ -13,7 +13,6 @@ from typing import Dict, List, Optional, Union, get_args
 import neuroglancer
 import numpy as np
 import shutil
-from utils import utils
 
 from .utils import utils
 
