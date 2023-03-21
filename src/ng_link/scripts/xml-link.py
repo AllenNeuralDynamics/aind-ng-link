@@ -2,7 +2,7 @@ from collections import OrderedDict, defaultdict
 import xmltodict
 import numpy as np
 
-from ng_state import NgState
+from ng_link import NgState
 
 def extract_xml_transforms(xml_path: str) -> dict[int, list[dict]]: 
    """
@@ -142,10 +142,11 @@ def create_ng_link(xml_path: str, s3_path: str, output_json_path: str = "."):
 
             # Append to sources
             for tile_num, transform in net_transforms.items(): 
-                if tile_num < 10: 
+                if len(tile_num) == 1: 
                     tile_num = "0" + str(tile_num)
                 url = f"{s3_path}/tile_X_00{tile_num}_Y_0000_Z_0000_CH_{channel_name}_cam{camera_index}.zarr"
-                final_transform = convert_matrix_3x4_to_5x6(apply_visual_transform(transform))
+                final_transform = apply_visual_transform(transform, camera_index)
+                final_transform = convert_matrix_3x4_to_5x6(final_transform)
 
                 sources.append(
                     {
@@ -167,7 +168,7 @@ def create_ng_link(xml_path: str, s3_path: str, output_json_path: str = "."):
 
 # TODO: Test in Code Ocean
 if __name__ == '__main__':
-    xml_path = '...'
+    xml_path = '../../../dispim_14tiles.xml'
     s3_path = "s3://aind-open-data/diSPIM_647459_2022-12-07_00-00-00/diSPIM.zarr"
 
     create_ng_link(xml_path, s3_path)
