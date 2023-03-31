@@ -8,6 +8,7 @@ from typing import List, Optional, Union
 import xmltodict
 from pint import UnitRegistry
 
+
 from .ng_layer import NgLayer
 from .utils import utils
 
@@ -24,7 +25,12 @@ import inspect
 import neuroglancer
 import multiprocessing
 import numpy as np
+import pandas as pd
 from multiprocessing.managers import NamespaceProxy, BaseManager
+
+#Added for example 4
+import boto3
+from glob import glob
 
 class NgState:
     """
@@ -777,7 +783,108 @@ def example_3(cells, path, res, buf = None):
         print("Building file took {0} minutes".format((time.time() - start_t) / 60))
         
         outfile.write(bytes(buf))
+
+def get_ccf(out_path):
+    """
+    Parameters
+    ----------
+    out_path : str
+        path to where the precomputed segmentation map will be stored
+
+    Returns
+    -------
+    None.
+
+    """
+    
+    # location of the data from tissueCyte, but can get our own and change to aind-open-data
+    bucketName = 'tissuecyte-visualizations'
+    s3_folder = 'data/221205/ccf_annotations/'
+    
+    s3_resource = boto3.resource('s3')
+    bucket = s3_resource.Bucket(bucketName) 
+    
+    for obj in bucket.objects.filter(Prefix = s3_folder):
+        target = os.path.join(out_path, os.path.relpath(obj.key, s3_folder))
         
+        # dont currently need 10um data so we should skip
+        if '10000_10000_10000' in obj.key:
+            continue
+        
+        if not os.path.exists(os.path.dirname(target)):
+            os.makedirs(os.path.dirname(target))
+
+        # dont try and download folders
+        if obj.key[-1] == '/':
+            continue
+
+        bucket.download_file(obj.key, target)
+
+
+def example_4(input_path, output_path):
+    
+    """
+    Function for creating segmentation layer with cell counts
+
+    Parameters
+    -----------------
+
+    input_path: str
+        path to file from "aind_SmartSPIM_quantification". named "Cell_count_by_region.csv"
+    output_path: str
+        path to where you want to save the precomputed files
+    """
+    #check that save path exists and if not create
+    if not os.path.exists(output_path):
+        os.mkdir(output_path)
+    
+    # import count data
+    count_file = glob(os.path.join(input_path, '*_by_region.csv'))[0]
+    
+    df_count = pd.read_csv(count_file, index_col = 0)
+    include = list(df_count['Structure'].values)
+        
+    # get CCF id-struct pairings
+    df_ccf = pd.read_csv('./data/ccf_ref.csv')
+        
+    keep_ids = []
+    keep_struct = []
+    for r, irow in df_ccf.iterrows():
+        if irow['struct'] in include:
+            keep_ids.append(str(irow['id']))
+            total = df_count.loc[df_count['Structure'] == irow['struct'], ['Total']].values.squeeze()
+            keep_struct.append(irow['struct'] + ' cells: ' + str(total))
+    
+    # download ccf procomputed format
+    get_ccf(output_path)
+    
+    # currently using 25um resolution so need to drop 10um data or NG finicky
+    with open(os.path.join(output_path, "info"), "r") as f:
+        info_file = json.load(f)
+    
+    info_file['scales'].pop(0)
+    
+    with open(os.path.join(output_path, "info"), "w") as f:
+        json.dump(info_file, f, indent = 2)
+    
+    
+    # build json for segmantation properties
+    data = {
+        "@type": "neuroglancer_segment_properties",
+        'inline': {
+            "ids": keep_ids,
+            "properties": [
+                {
+                    "id": "label",
+                    "type": "label",
+                    "values": keep_struct
+                    }
+                ]
+            }
+        }
+        
+    with open(os.path.join(output_path, "segment_properties/info"), "w") as outfile:
+        json.dump(data, outfile, indent = 2)
 
 # flake8: noqa: E501
 def examples(buf):
@@ -785,12 +892,12 @@ def examples(buf):
     Examples of how to use the neurglancer state class.
     """
 
-    # location of segmentatio output and preprocessing for better visualization
-    cells_path = "/path/t0/detected_cells.xml"
+    #location of segmentatio output and preprocessing for better visualization
+    cells_path = "/path/to/detected_cells.xml"
     cells = get_points_from_xml(cells_path)
     cells = random.shuffle(cells)
     
-    # saving parameters
+    #saving parameters
     save_path = ""
     res = neuroglancer.CoordinateSpace(
             names=['z', 'y', 'x'],
@@ -798,7 +905,7 @@ def examples(buf):
             scales=[2, 1.8, 1.8])
     
     example_3(cells, save_path, res, buf)
-
+    
     return
 
 attributes = ObjProxy.populate_obj_attributes(bytearray)
@@ -806,10 +913,21 @@ bytearrayProxy = type("bytearrayProxy", (ObjProxy,), attributes)
 
 if __name__ == "__main__":
     
-    # set up manager for multiprocessing write directory
-    BaseManager.register('bytearray', bytearray, bytearrayProxy, exposed=tuple(dir(bytearrayProxy)))
-    manager = BaseManager()
-    manager.start()
-    buf = manager.bytearray()
+    #uncomment to run example 3
     
-    examples(buf)
+    # #set up manager for multiprocessing write directory
+    # BaseManager.register('bytearray', bytearray, bytearrayProxy, exposed=tuple(dir(bytearrayProxy)))
+    # manager = BaseManager()
+    # manager.start()
+    # buf = manager.bytearray()
+    
+    # examples(buf)
+    
+    
+    #uncomment to run example 4
+    input_path = '/path/to/cell/count/data'
+    save_path = '/path/to/segmentation/folder'
+    
+    example_4(input_path, save_path)
+    
+    
