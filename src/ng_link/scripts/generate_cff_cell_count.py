@@ -137,11 +137,11 @@ def generate_25_um_ccf_cells(params: dict, micron_res: int = 25):
     cells = get_points_from_xml(params["cells_precomputed"]["xml_path"])
     # cells = random.shuffle(cells)
 
-    # generate_cff_cell_counting(
-    #     params["ccf_cells_precomputed"]["input_path"],
-    #     params["ccf_cells_precomputed"]["output_path"],
-    #     params["ccf_cells_precomputed"]["ccf_reference_path"]
-    # )
+    generate_cff_cell_counting(
+        params["ccf_cells_precomputed"]["input_path"],
+        params["ccf_cells_precomputed"]["output_path"],
+        params["ccf_cells_precomputed"]["ccf_reference_path"]
+    )
 
     # Creating neuroglancer link
     ccf_cell_count = {
