@@ -1,9 +1,9 @@
-# library-repo-template
+# aind-ng-link
 
 [![License](https://img.shields.io/badge/license-MIT-brightgreen)](LICENSE)
 ![Code Style](https://img.shields.io/badge/code%20style-black-black)
 
-Template for a minimal, basic repository for an AIND library.
+Repository to generate neuroglancer links to facilitate the visualization of the datasets generated at the Allen Institute for Neural Dynamics.
 
 ## Installation
 To use the software, in the root directory, run
