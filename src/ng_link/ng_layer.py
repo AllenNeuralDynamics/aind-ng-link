@@ -10,9 +10,9 @@ import time
 from multiprocessing.managers import BaseManager, NamespaceProxy
 from pathlib import Path
 from typing import Dict, List, Optional, Union, get_args
+
 import neuroglancer
 import numpy as np
-import shutil
 
 from .utils import utils
 
@@ -262,6 +262,220 @@ def helper_reverse_dictionary(dictionary: dict) -> dict:
     return new_dict
 
 
+class SegmentationLayer:
+    """
+    Class to represent a neuroglancer segmentation layer in the
+    configuration json
+    """
+
+    def __init__(
+        self,
+        segmentation_source: PathLike,
+        tab: str,
+        layer_name: str,
+        mount_service: str,
+        bucket_path: str,
+        layer_type: Optional[str] = "segmentation",
+    ) -> None:
+        """
+        Class constructor
+
+        Parameters
+        ------------------------
+        segmentation_source: PathLike
+            Segmentation layer path
+
+        tab: str
+            Tab name
+
+        layer_name: str
+            Layer name
+
+        mount_service: Optional[str]
+            This parameter could be 'gs' referring to a bucket in Google Cloud or 's3'in Amazon.
+
+        bucket_path: str
+            Path in cloud service where the dataset will be saved
+
+        mount_service: Optional[str]
+            This parameter could be 'gs' referring to a bucket in Google Cloud or 's3'in Amazon.
+
+        bucket_path: str
+            Path in cloud service where the dataset will be saved
+
+        layer_type: str
+            Layer type. Default: segmentation
+        """
+
+        self.__layer_state = {}
+        self.segmentation_source = segmentation_source
+        self.tab_name = tab
+        self.layer_name = layer_name
+        self.mount_service = mount_service
+        self.bucket_path = bucket_path
+        self.layer_type = layer_type
+
+        # Optional parameter that must be used when we have multiple images per layer
+        # Dictionary needs to be reversed for correct visualization
+        self.update_state()
+
+    def __set_s3_path(self, orig_source_path: PathLike) -> str:
+        """
+        Private method to set a s3 path based on a source path.
+        Available image formats: ['.zarr']
+
+        Parameters
+        ------------------------
+        orig_source_path: PathLike
+            Source path of the image
+
+        Raises
+        ------------------------
+        NotImplementedError:
+            Raises if the image format is not zarr.
+
+        Returns
+        ------------------------
+        str
+            String with the source path pointing to the mount service in the cloud
+        """
+
+        s3_path = None
+        if not orig_source_path.startswith(f"{self.mount_service}://"):
+            orig_source_path = Path(orig_source_path)
+            s3_path = (
+                f"{self.mount_service}://{self.bucket_path}/{orig_source_path}"
+            )
+
+        else:
+            s3_path = orig_source_path
+
+        return s3_path
+
+    def set_segmentation_source(self, source: PathLike) -> dict:
+        """
+        Sets the segmentation source.
+
+        Parameters
+        ---------------
+        source: PathLike
+            Path where the precomputed format is
+            located
+
+        Returns
+        ---------------
+        dict:
+            Dictionary with the modified layer.
+        """
+
+        actual_state = self.__layer_state
+
+        if "precomputed://" in source:
+
+            write_path = Path(source.replace("precomputed://", ""))
+            s3_path = self.__set_s3_path(str(write_path))
+
+            actual_state["source"] = f"precomputed://{s3_path}"
+
+        else:
+            raise NotImplementedError("This option has not been implemented")
+
+        return actual_state
+
+    def set_tool(self, tool_name: str) -> dict:
+        """
+        Sets the tool name in neuroglancer.
+
+        Parameters
+        ---------------
+        tool_name: str
+            Tool name in neuroglancer.
+
+        Returns
+        ---------------
+        dict:
+            Dictionary with the modified layer.
+        """
+        actual_state = self.__layer_state
+        actual_state["tool"] = str(tool_name)
+        return actual_state
+
+    def set_tab_name(self, tab_name: str) -> dict:
+        """
+        Sets the tab name in neuroglancer.
+
+        Parameters
+        ---------------
+        tab_name: str
+            Tab name in neuroglancer.
+
+        Returns
+        ---------------
+        dict:
+            Dictionary with the modified layer.
+        """
+        actual_state = self.__layer_state
+        actual_state["tab"] = str(tab_name)
+        return actual_state
+
+    def set_layer_name(self, layer_name: str) -> dict:
+        """
+        Sets the layer name
+
+        Parameters
+        ---------------
+        layer_name: str
+            Layer name
+
+        Returns
+        ---------------
+        dict:
+            Dictionary with the modified layer.
+        """
+        actual_state = self.__layer_state
+        actual_state["name"] = layer_name
+        return actual_state
+
+    def update_state(self):
+        """
+        Updates the state of the layer
+        """
+
+        self.__layer_state = self.set_segmentation_source(
+            self.segmentation_source
+        )
+
+        self.__layer_state = self.set_tab_name(self.tab_name)
+
+        self.__layer_state = self.set_layer_name(self.layer_name)
+
+        self.__layer_state["type"] = "segmentation"
+
+    @property
+    def layer_state(self) -> dict:
+        """
+        Getter of layer state property.
+
+        Returns
+        ------------------------
+        dict:
+            Dictionary with the current configuration of the layer state.
+        """
+        return self.__layer_state
+
+    @layer_state.setter
+    def layer_state(self, new_layer_state: dict) -> None:
+        """
+        Setter of layer state property.
+
+        Parameters
+        ------------------------
+        new_layer_state: dict
+            Dictionary with the new configuration of the layer state.
+        """
+        self.__layer_state = dict(new_layer_state)
+
+
 class AnnotationLayer:
     """
     Class to represent a neuroglancer annotation layer in the
@@ -277,6 +491,7 @@ class AnnotationLayer:
         bucket_path: str,
         layer_type: Optional[str] = "annotation",
         limits: Optional[List[int]] = None,
+        layer_name: Optional[str] = "annotationLayer",
     ) -> None:
         """
         Class constructor
@@ -294,7 +509,7 @@ class AnnotationLayer:
             Dictionary with the output dimensions of the layer.
             Note: The axis order indicates where the points
             will be placed.
-        
+
         mount_service: Optional[str]
             This parameter could be 'gs' referring to a bucket in Google Cloud or 's3'in Amazon.
 
@@ -312,6 +527,9 @@ class AnnotationLayer:
 
         limits: Optional[List[int]]
             Range of points to visualize
+
+        layer_name: Optional[str]
+            Layer name
         """
 
         self.__layer_state = {}
@@ -321,6 +539,7 @@ class AnnotationLayer:
         self.bucket_path = bucket_path
         self.layer_type = layer_type
         self.limits = limits
+        self.layer_name = layer_name
 
         # Optional parameter that must be used when we have multiple images per layer
         # Dictionary needs to be reversed for correct visualization
@@ -636,7 +855,7 @@ class AnnotationLayer:
 
         self.__layer_state = self.set_tab_name("annotations")
 
-        self.__layer_state = self.set_layer_name("annotationLayer")
+        self.__layer_state = self.set_layer_name(self.layer_name)
 
         self.__layer_state["type"] = "annotation"
 
@@ -1175,11 +1394,12 @@ class NgLayer:
         """
         Class constructor
         """
-        self.__extensions = ["image", "annotation"]
+        self.__extensions = ["image", "annotation", "segmentation"]
 
         self.factory = {
             "image": ImageLayer,
             "annotation": AnnotationLayer,
+            "segmentation": SegmentationLayer,
         }
 
     @property
