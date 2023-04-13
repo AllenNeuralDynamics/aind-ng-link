@@ -29,17 +29,21 @@ if camera_index == 1:
     matrix_3x4 = correction @ matrix_3x4
 """
 
-def generate_dispim_link(ch_405_xml_path: str, 
+# Definitely I am not changing the path according
+# to the channel
+
+def generate_dispim_link(base_channel_xml_path: str, 
                          cross_channel_xml_path: str,
                          s3_path: str, 
                          output_json_path: str = ".") -> None:
-    # Gather CH_405 xml info
-    vox_sizes: tuple[float, float, float] = xml_parsing.extract_tile_vox_size(ch_405_xml_path)
-    tile_paths: dict[int, str] = xml_parsing.extract_tile_paths(ch_405_xml_path)
-    tile_transforms: dict[int, list[dict]] = xml_parsing.extract_tile_transforms(ch_405_xml_path)
+    # Gather base channel xml info
+    vox_sizes: tuple[float, float, float] = xml_parsing.extract_tile_vox_size(base_channel_xml_path)
+    tile_paths: dict[int, str] = xml_parsing.extract_tile_paths(base_channel_xml_path)
+    tile_transforms: dict[int, list[dict]] = xml_parsing.extract_tile_transforms(base_channel_xml_path)
     intertile_transforms: dict[int, np.ndarray] = link_utils.calculate_net_transforms(tile_transforms)
-    
-    # Gather cross_channel xml info, only care about transforms
+    base_channel: int = link_utils.extract_channel_from_tile_path(tile_paths[0])
+
+    # Gather cross channel xml info, only care about transforms
     # Massaging transforms into same format as 'intertile_transforms'. 
     channel_paths: dict[int, str] = xml_parsing.extract_tile_paths(cross_channel_xml_path)
     channels: list[int] = [link_utils.extract_channel_from_tile_path(cp) for cp in channel_paths.values()]
@@ -90,12 +94,17 @@ def generate_dispim_link(ch_405_xml_path: str,
                     "vec": "vec3",
                 },
                 "visible": True,  # Optional
-                "opacity": 1.00,
-                "name": f"CH_{channel}"
+                "opacity": 0.50,
+                "name": f"CH_{channel}",
+                "blend": "additive"
             }
         )
 
         for tile_id in range(len(intertile_transforms)): 
+            # Get base tile path, modify path across channels
+            base_t_path = tile_paths[tile_id]
+            t_path = base_t_path.replace(f'{base_channel}', f'{channel}')
+
             # Get net transform
             intertile_tf = intertile_transforms[tile_id]
             i_matrix_3x3 = intertile_tf[:, 0:3]
@@ -110,9 +119,6 @@ def generate_dispim_link(ch_405_xml_path: str,
 
             net_tf = apply_deskewing(net_tf)
 
-            # Get tile path
-            t_path = tile_paths[tile_id]
-            
             # Add (path, transform) source entry
             url = f"{s3_path}/{t_path}"
             final_transform = link_utils.convert_matrix_3x4_to_5x6(net_tf)
@@ -135,10 +141,10 @@ def generate_dispim_link(ch_405_xml_path: str,
 
 if __name__ == '__main__':
     # Fill in your own data
-    channel_405_path = '/Users/jonathan.wong/Projects/aind-ng-link/dispim_14tiles.xml'
+    base_channel_path = '/Users/jonathan.wong/Projects/aind-ng-link/dispim_14tiles.xml'
     cross_channel_path = '/Users/jonathan.wong/Projects/aind-ng-link/cross_channel_regristration.xml'
     s3_path = "s3://aind-open-data/diSPIM_647459_2022-12-07_00-00-00/diSPIM.zarr"
     
-    generate_dispim_link(channel_405_path, 
+    generate_dispim_link(base_channel_path, 
                          cross_channel_path,
                          s3_path)
