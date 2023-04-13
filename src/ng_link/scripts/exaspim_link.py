@@ -85,8 +85,9 @@ def generate_exaspim_link(xml_path: str,
                 "vec": "vec3",
             },
             "visible": True,  # Optional
-            "opacity": 0.50,
-            "name": f"CH_{channel}"
+            "opacity": 1.0,
+            "name": f"CH_{channel}",
+            "blend": "additive"
         }
     )
 
@@ -116,7 +117,7 @@ def generate_exaspim_link(xml_path: str,
 
 if __name__ == '__main__':
     # Fill in your own data
-    xml_path = '/Users/jonathan.wong/Projects/aind-ng-link/bigstitcher_2023-03-20.xml'
+    xml_path = '/Users/jonathan.wong/Projects/aind-ng-link/bigstitcher_zarr_phcorr_man_ip_imported_2023-03-27.xml'
     s3_path = "s3://aind-open-data/exaSPIM_651324_2023-03-06_15-13-25/exaSPIM"
     
     generate_exaspim_link(xml_path, s3_path)
