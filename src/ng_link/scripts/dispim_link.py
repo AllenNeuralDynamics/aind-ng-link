@@ -6,6 +6,24 @@ import xml_parsing
 import link_utils
 
 def apply_deskewing(matrix_3x4: np.ndarray, theta: float = 45) -> np.ndarray:
+    """
+    Compounds deskewing transform to input 3x4 matrix: Deskewing @ Input_3x4_Matrix.
+
+    Parameters
+    ------------------------
+    matrix_3x4: np.ndarray
+        3x4 numpy array representing transformation matrix applied to tile.
+
+    theta: float
+        Angle of lens during acquisition. 
+
+    Returns
+    ------------------------
+    np.ndarray: 
+        3x4 numpy array composite transform.
+
+    """
+
     # Deskewing 
     # X vector => XZ direction
     deskew_factor = np.tan(np.deg2rad(theta))
@@ -29,13 +47,34 @@ if camera_index == 1:
     matrix_3x4 = correction @ matrix_3x4
 """
 
-# Definitely I am not changing the path according
-# to the channel
-
 def generate_dispim_link(base_channel_xml_path: str, 
                          cross_channel_xml_path: str,
                          s3_path: str, 
                          output_json_path: str = ".") -> None:
+    """
+    Creates an neuroglancer link to visualize registration transforms on dispim dataset pre-fusion.
+    
+    Parameters
+    ------------------------
+    base_channel_xml_path: str
+        Path to xml file acquired from tile-to-tile registration within the base channel.
+        These registrations are reused for registering tiles in all other channels. 
+    
+    cross_channel_xml_path: str
+        Path to xml file acquired from channel-to-channel registration. 
+        These registrations are prepended to each tile registration. 
+    
+    s3_path: str
+        Path of s3 bucket where dipim dataset is located.
+    
+    output_json_path: str
+        Local path to write process_output.json file that nueroglancer reads.
+
+    Returns
+    ------------------------
+    None
+    """
+    
     # Gather base channel xml info
     vox_sizes: tuple[float, float, float] = xml_parsing.extract_tile_vox_size(base_channel_xml_path)
     tile_paths: dict[int, str] = xml_parsing.extract_tile_paths(base_channel_xml_path)
@@ -117,7 +156,7 @@ def generate_dispim_link(base_channel_xml_path: str,
             net_translation = (np.linalg.inv(c_matrix_3x3) @ i_translation) + c_translation
             net_tf = np.hstack((net_matrix_3x3, net_translation.reshape(3, 1)))
 
-            net_tf = apply_deskewing(net_tf)
+            net_tf = apply_deskewing(net_tf, -45)
 
             # Add (path, transform) source entry
             url = f"{s3_path}/{t_path}"
@@ -141,9 +180,9 @@ def generate_dispim_link(base_channel_xml_path: str,
 
 if __name__ == '__main__':
     # Fill in your own data
-    base_channel_path = '/Users/jonathan.wong/Projects/aind-ng-link/dispim_14tiles.xml'
-    cross_channel_path = '/Users/jonathan.wong/Projects/aind-ng-link/cross_channel_regristration.xml'
-    s3_path = "s3://aind-open-data/diSPIM_647459_2022-12-07_00-00-00/diSPIM.zarr"
+    base_channel_path = '/Users/jonathan.wong/Projects/aind-ng-link/dispim_657584_488.xml'
+    cross_channel_path = '/Users/jonathan.wong/Projects/aind-ng-link/dispim_657584_coreg.xml'
+    s3_path = "s3://aind-open-data/diSPIM_657584_2023-03-23_09-24-11/diSPIM.zarr"
     
     generate_dispim_link(base_channel_path, 
                          cross_channel_path,
