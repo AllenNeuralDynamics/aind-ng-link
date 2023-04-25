@@ -8,7 +8,6 @@ from typing import List, Optional, Union
 import numpy as np
 import xmltodict
 from pint import UnitRegistry
-import numpy as np
 
 from .ng_layer import NgLayer
 from .utils import utils
@@ -243,6 +242,17 @@ class NgState:
                     "limits": layer["limits"] if "limits" in layer else None,
                     "mount_service": self.mount_service,
                     "bucket_path": self.bucket_path,
+                    "layer_name": layer["name"],
+                }
+
+            elif layer["type"] == "segmentation":
+                config = {
+                    "segmentation_source": layer["source"],
+                    "tab": layer["tab"],
+                    "layer_name": layer["name"],
+                    "mount_service": self.mount_service,
+                    "bucket_path": self.bucket_path,
+                    "layer_type": layer["type"],
                 }
 
             self.__layers.append(NgLayer().create(config).layer_state)
@@ -639,6 +649,7 @@ def exaspim_example():
     neuroglancer_link.save_state_as_json()
     print(neuroglancer_link.get_url_link())
 
+
 def example_3(cells):
     """
     Example 3 with the annotation layer
@@ -835,7 +846,6 @@ def dispim_example():
                             translation_y,
                             translation_z,
                         ],
-
                     ),
                     "channel": 0,  # Optional
                     "shaderControls": {  # Optional
