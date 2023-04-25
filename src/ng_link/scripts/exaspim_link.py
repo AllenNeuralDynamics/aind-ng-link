@@ -12,7 +12,7 @@ def omit_initial_offsets(view_transforms: dict[int, list[dict]]) -> None:
 
     Parameters
     ------------------------
-    view_transforms: dict[int, list[dict]]:
+    view_transforms: dict[int, list[dict]]
         Dictionary of tile ids to list of transforms.
 
     Returns
@@ -93,7 +93,7 @@ def generate_exaspim_link(
             },
             "visible": True,  # Optional
             "opacity": 0.50,
-            "name": f"CH_{channel}",
+            "name": f"CH_{channel}"
         }
     )
 
