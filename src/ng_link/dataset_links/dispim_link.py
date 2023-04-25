@@ -50,6 +50,10 @@ if camera_index == 1:
 def generate_dispim_link(base_channel_xml_path: str, 
                          cross_channel_xml_path: str,
                          s3_path: str, 
+                         max_dr: int = 800, 
+                         opacity: float = 0.5, 
+                         blend: str = "additive",
+                         deskew_angle: int = 45, 
                          output_json_path: str = ".") -> None:
     """
     Creates an neuroglancer link to visualize registration transforms on dispim dataset pre-fusion.
@@ -125,7 +129,7 @@ def generate_dispim_link(base_channel_xml_path: str,
                 "source": sources,
                 "channel": 0,  # Optional
                 "shaderControls": {  # Optional
-                    "normalized": {"range": [0, 800]} 
+                    "normalized": {"range": [0, max_dr]} 
                 },
                 "shader": {
                     "color": hex_str,
@@ -133,9 +137,9 @@ def generate_dispim_link(base_channel_xml_path: str,
                     "vec": "vec3",
                 },
                 "visible": True,  # Optional
-                "opacity": 0.50,
+                "opacity": opacity,
                 "name": f"CH_{channel}",
-                "blend": "additive"
+                "blend": blend
             }
         )
 
@@ -156,7 +160,7 @@ def generate_dispim_link(base_channel_xml_path: str,
             net_translation = (np.linalg.inv(c_matrix_3x3) @ i_translation) + c_translation
             net_tf = np.hstack((net_matrix_3x3, net_translation.reshape(3, 1)))
 
-            net_tf = apply_deskewing(net_tf, -45)
+            net_tf = apply_deskewing(net_tf, deskew_angle)
 
             # Add (path, transform) source entry
             url = f"{s3_path}/{t_path}"
@@ -177,13 +181,3 @@ def generate_dispim_link(base_channel_xml_path: str,
     )
     neuroglancer_link.save_state_as_json()
     print(neuroglancer_link.get_url_link())
-
-if __name__ == '__main__':
-    # Fill in your own data
-    base_channel_path = '/Users/jonathan.wong/Projects/aind-ng-link/dispim_657584_488.xml'
-    cross_channel_path = '/Users/jonathan.wong/Projects/aind-ng-link/dispim_657584_coreg.xml'
-    s3_path = "s3://aind-open-data/diSPIM_657584_2023-03-23_09-24-11/diSPIM.zarr"
-    
-    generate_dispim_link(base_channel_path, 
-                         cross_channel_path,
-                         s3_path)
