@@ -1,17 +1,20 @@
 """
 Script to generate CCF + cell counts
 """
+
 import json
 import os
 from pathlib import Path
 from typing import Optional, Union
 
 import boto3
-import neuroglancer
+
+# import neuroglancer
 import pandas as pd
 
 from ng_link import NgState
-from ng_link.ng_layer import generate_precomputed_cells
+
+# from ng_link.ng_layer import generate_precomputed_cells
 from ng_link.ng_state import get_points_from_xml
 
 # IO types
@@ -36,7 +39,8 @@ def get_ccf(
 
     """
 
-    # location of the data from tissueCyte, but can get our own and change to aind-open-data
+    # location of the data from tissueCyte,
+    # but can get our own and change to aind-open-data
 
     s3_resource = boto3.resource("s3")
     bucket = s3_resource.Bucket(bucket_name)
@@ -68,7 +72,8 @@ def generate_cff_cell_counting(
     -----------------
 
     input_path: str
-        path to file cell_count_by_region.csv from generated from "aind-smartspim-quantification"
+        path to file cell_count_by_region.csv
+        generated from "aind-smartspim-quantification"
     output_path: str
         path to where you want to save the precomputed files
     """
@@ -140,7 +145,7 @@ def generate_25_um_ccf_cells(params: dict, micron_res: int = 25):
     generate_cff_cell_counting(
         params["ccf_cells_precomputed"]["input_path"],
         params["ccf_cells_precomputed"]["output_path"],
-        params["ccf_cells_precomputed"]["ccf_reference_path"]
+        params["ccf_cells_precomputed"]["ccf_reference_path"],
     )
 
     # Creating neuroglancer link
@@ -157,9 +162,9 @@ def generate_25_um_ccf_cells(params: dict, micron_res: int = 25):
                 "source": params["zarr_path"],
                 "type": "image",
                 "channel": 0,
-                "shaderControls": {  # Optional
+                "shaderControls": {
                     "normalized": {"range": [0, 500]}
-                },
+                },  # Optional
                 "name": "image_25_um",
             },
             {
