@@ -2,5 +2,10 @@
 exclude =
     .git,
     __pycache__,
-    build
+    build,
+    scripts/
+
+per-file-ignores =
+    ./src/ng_link/scripts/generate_cff_cell_count.py: E501
+
 max-complexity = 10

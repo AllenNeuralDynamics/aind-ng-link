@@ -1,14 +1,18 @@
-import link_utils
+"""
+Library for generating exaspim link.
+"""
 import numpy as np
-import xml_parsing
 
 from ng_link import NgState
 
+import xml_parsing
+import link_utils
 
 def omit_initial_offsets(view_transforms: dict[int, list[dict]]) -> None:
     """
-    For OME-Zarr datasets, inital offsets are already encoded in the metadata and
-    extracted my neuroglancer. This function removes the duplicate transform.
+    For OME-Zarr datasets, inital offsets are
+    already encoded in the metadata and extracted my neuroglancer.
+    This function removes the duplicate transform.
 
     Parameters
     ------------------------
@@ -25,10 +29,15 @@ def omit_initial_offsets(view_transforms: dict[int, list[dict]]) -> None:
 
 
 def generate_exaspim_link(
-    xml_path: str, s3_path: str, output_json_path: str = "."
+    xml_path: str,
+    s3_path: str,
+    max_dr: int = 200,
+    opacity: float = 1.0,
+    blend: str = "default",
+    output_json_path: str = ".",
 ) -> None:
-    """
-    Creates an neuroglancer link to visualize registration transforms on exaspim dataset pre-fusion.
+    """Creates an neuroglancer link to visualize
+    registration transforms on exaspim dataset pre-fusion.
 
     Parameters
     ------------------------
@@ -83,17 +92,18 @@ def generate_exaspim_link(
             "type": "image",  # Optional
             "source": sources,
             "channel": 0,  # Optional
-            "shaderControls": {  # Optional
-                "normalized": {"range": [0, 200]}  # Exaspim has low HDR
-            },
+            "shaderControls": {
+                "normalized": {"range": [0, max_dr]}
+            },  # Optional  # Exaspim has low HDR
             "shader": {
                 "color": hex_str,
                 "emitter": "RGB",
                 "vec": "vec3",
             },
             "visible": True,  # Optional
-            "opacity": 0.50,
-            "name": f"CH_{channel}"
+            "opacity": opacity,
+            "name": f"CH_{channel}",
+            "blend": blend,
         }
     )
 
@@ -117,13 +127,3 @@ def generate_exaspim_link(
     )
     neuroglancer_link.save_state_as_json()
     print(neuroglancer_link.get_url_link())
-
-
-if __name__ == "__main__":
-    # Fill in your own data
-    xml_path = (
-        "/Users/jonathan.wong/Projects/aind-ng-link/bigstitcher_2023-03-20.xml"
-    )
-    s3_path = "s3://aind-open-data/exaSPIM_651324_2023-03-06_15-13-25/exaSPIM"
-
-    generate_exaspim_link(xml_path, s3_path)

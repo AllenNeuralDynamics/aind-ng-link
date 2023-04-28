@@ -480,9 +480,9 @@ def smartspim_example():
                 "channel": 0,
                 # 'name': 'image_name_0',
                 "shader": {"color": "green", "emitter": "RGB", "vec": "vec3"},
-                "shaderControls": {  # Optional
+                "shaderControls": {
                     "normalized": {"range": [0, 500]}
-                },
+                },  # Optional
             },
             {
                 "source": "image_path.zarr",
@@ -490,9 +490,9 @@ def smartspim_example():
                 "channel": 1,
                 # 'name': 'image_name_1',
                 "shader": {"color": "red", "emitter": "RGB", "vec": "vec3"},
-                "shaderControls": {  # Optional
+                "shaderControls": {
                     "normalized": {"range": [0, 500]}
-                },
+                },  # Optional
             },
         ],
     }
@@ -626,9 +626,9 @@ def exaspim_example():
                     },
                 ],
                 "channel": 0,  # Optional
-                "shaderControls": {  # Optional
+                "shaderControls": {
                     "normalized": {"range": [30, 70]}
-                },
+                },  # Optional
                 "visible": True,  # Optional
                 "opacity": 0.50,
             }
@@ -669,9 +669,9 @@ def example_3(cells):
                 "channel": 0,
                 # 'name': 'image_name_0',
                 "shader": {"color": "green", "emitter": "RGB", "vec": "vec3"},
-                "shaderControls": {  # Optional
+                "shaderControls": {
                     "normalized": {"range": [0, 500]}
-                },
+                },  # Optional
             },
             {
                 "type": "annotation",
@@ -848,9 +848,9 @@ def dispim_example():
                         ],
                     ),
                     "channel": 0,  # Optional
-                    "shaderControls": {  # Optional
+                    "shaderControls": {
                         "normalized": {"range": [0, 800]}
-                    },
+                    },  # Optional
                     "shader": {
                         "color": colors[channel_name_idx],
                         "emitter": "RGB",

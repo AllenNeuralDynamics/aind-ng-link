@@ -20,9 +20,10 @@ dynamic = ["version", "readme"]
 dependencies = [
     'pandas',
     'sphinx',
-    'pint',
-    'numpy',
-    'neuroglancer'
+    'pint >= 0.18',
+    'numpy >= 1.21.6',
+    'neuroglancer >= 2.36', 
+    'xmltodict >= 0.13.0'
 ]
 
 [project.optional-dependencies]
@@ -76,5 +77,5 @@ fail_under = 0
 line_length = 79
 
 [tool.interrogate]
-exclude = ["setup.py", "docs", "build"]
+exclude = ["setup.py", "docs", "build", "src/ng_link/scripts/"]
 fail-under = 100
