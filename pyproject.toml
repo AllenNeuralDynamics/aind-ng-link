@@ -18,11 +18,11 @@ classifiers = [
 dynamic = ["version", "readme"]
 
 dependencies = [
-    'pandas >= 2.0.1',
-    'sphinx >= 6.2.1',
-    'pint >= 0.20.1',
-    'numpy >= 1.24.3',
-    'neuroglancer >= 2.36', 
+    'pandas',
+    'sphinx',
+    'pint',
+    'numpy',
+    'neuroglancer', 
     'xmltodict'
 ]
 
