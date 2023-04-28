@@ -21,7 +21,7 @@ dependencies = [
     'pandas',
     'sphinx',
     'pint >= 0.18',
-    'numpy >= 1.24.3',
+    'numpy >= 1.21.6',
     'neuroglancer >= 2.36', 
     'xmltodict >= 0.13.0'
 ]
