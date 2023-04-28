@@ -20,10 +20,10 @@ dynamic = ["version", "readme"]
 dependencies = [
     'pandas',
     'sphinx',
-    'pint',
-    'numpy',
-    'neuroglancer', 
-    'xmltodict'
+    'pint >= 0.20.1',
+    'numpy >= 1.24.3',
+    'neuroglancer >= 2.36', 
+    'xmltodict >= 0.13.0'
 ]
 
 [project.optional-dependencies]
