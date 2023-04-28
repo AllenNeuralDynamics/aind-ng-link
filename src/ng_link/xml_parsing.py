@@ -1,6 +1,8 @@
+"""
+Utilities for parsing BDV XML
+"""
 import xmltodict
 from collections import OrderedDict
-
 
 def extract_tile_paths(xml_path: str) -> dict[int, str]:
     """

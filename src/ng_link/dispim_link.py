@@ -1,3 +1,6 @@
+"""
+Library for generating dispim link.
+"""
 import numpy as np
 
 from ng_link import NgState
@@ -33,20 +36,6 @@ def apply_deskewing(matrix_3x4: np.ndarray, theta: float = 45) -> np.ndarray:
     matrix_3x4 = deskew @ matrix_3x4
 
     return matrix_3x4
-
-
-# Saving for whenever I-Spim -> Di-Spim
-"""
-Camera Alignment
-if camera_index == 1:
-    # Flip in z, mirror in x = Flip in y
-    correction = \
-    np.array([[1, 0, 0],
-              [0, -1, 0],
-              [0, 0, 1]])
-    matrix_3x4 = correction @ matrix_3x4
-"""
-
 
 def generate_dispim_link(
     base_channel_xml_path: str,

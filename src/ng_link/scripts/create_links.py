@@ -1,7 +1,6 @@
 # from ng_link import exaspim_link
 from ng_link import dispim_link
 
-
 def main():
     # Fill in your own data
     base_channel_path = (

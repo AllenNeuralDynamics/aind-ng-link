@@ -1,10 +1,12 @@
+"""
+Library for generating exaspim link.
+"""
 import numpy as np
 
 from ng_link import NgState
 
 import xml_parsing
 import link_utils
-
 
 def omit_initial_offsets(view_transforms: dict[int, list[dict]]) -> None:
     """
@@ -34,8 +36,7 @@ def generate_exaspim_link(
     blend: str = "default",
     output_json_path: str = ".",
 ) -> None:
-    """
-    Creates an neuroglancer link to visualize
+    """Creates an neuroglancer link to visualize
     registration transforms on exaspim dataset pre-fusion.
 
     Parameters
