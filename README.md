@@ -27,24 +27,23 @@ There are several libraries used to run linters, check documentation, and run te
 ```
 coverage run -m unittest discover && coverage report
 ```
-
 - Use **interrogate** to check that modules, methods, etc. have been documented thoroughly:
 
 ```
 interrogate .
 ```
-
 - Use **flake8** to check that code is up to standards (no unused imports, etc.):
+
 ```
 flake8 .
 ```
-
 - Use **black** to automatically format the code into PEP standards:
+
 ```
 black .
 ```
-
 - Use **isort** to automatically sort import statements:
+
 ```
 isort .
 ```
