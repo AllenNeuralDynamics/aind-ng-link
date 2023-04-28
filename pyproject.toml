@@ -20,7 +20,7 @@ dynamic = ["version", "readme"]
 dependencies = [
     'pandas',
     'sphinx',
-    'pint >= 0.20.1',
+    'pint >= 0.18',
     'numpy >= 1.24.3',
     'neuroglancer >= 2.36', 
     'xmltodict >= 0.13.0'
