@@ -1,8 +1,10 @@
 """
 Utilities for parsing BDV XML
 """
-import xmltodict
 from collections import OrderedDict
+
+import xmltodict
+
 
 def extract_tile_paths(xml_path: str) -> dict[int, str]:
     """
@@ -85,7 +87,10 @@ def extract_tile_transforms(xml_path: str) -> dict[int, list[dict]]:
         data: OrderedDict = xmltodict.parse(file.read())
 
     for view_reg in data["SpimData"]["ViewRegistrations"]["ViewRegistration"]:
-        view_transforms[int(view_reg["@setup"])] = view_reg["ViewTransform"]
+        tfm_stack = view_reg["ViewTransform"]
+        if type(tfm_stack) is not list:
+            tfm_stack = [tfm_stack]
+        view_transforms[int(view_reg["@setup"])] = tfm_stack
 
     view_transforms = {
         view: tfs[::-1] for view, tfs in view_transforms.items()

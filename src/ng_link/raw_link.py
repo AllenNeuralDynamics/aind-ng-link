@@ -1,32 +1,12 @@
 """
-Library for generating exaspim link.
+Library for generating raw link for visualizing tiles in nominal position. 
 """
 import numpy as np
 
 from ng_link import NgState, link_utils, xml_parsing
 
 
-def omit_initial_offsets(view_transforms: dict[int, list[dict]]) -> None:
-    """
-    For OME-Zarr datasets, inital offsets are
-    already encoded in the metadata and extracted my neuroglancer.
-    This function removes the duplicate transform.
-
-    Parameters
-    ------------------------
-    view_transforms: dict[int, list[dict]]
-        Dictionary of tile ids to list of transforms.
-
-    Returns
-    ------------------------
-    None
-    """
-
-    for view, tfs in view_transforms.items():
-        tfs.pop(0)
-
-
-def generate_exaspim_link(
+def generate_raw_link(
     xml_path: str,
     s3_path: str,
     max_dr: int = 200,
@@ -35,7 +15,7 @@ def generate_exaspim_link(
     output_json_path: str = ".",
 ) -> None:
     """Creates an neuroglancer link to visualize
-    registration transforms on exaspim dataset pre-fusion.
+    raw tile placements of one color channel defined in the input xml.
 
     Parameters
     ------------------------
@@ -50,16 +30,26 @@ def generate_exaspim_link(
     ------------------------
     None
     """
-
     # Gather xml info
     vox_sizes: tuple[float, float, float] = xml_parsing.extract_tile_vox_size(
         xml_path
     )
     tile_paths: dict[int, str] = xml_parsing.extract_tile_paths(xml_path)
-    tile_transforms: dict[
-        int, list[dict]
-    ] = xml_parsing.extract_tile_transforms(xml_path)
-    omit_initial_offsets(tile_transforms)
+
+    # Reference Pathstring:
+    # "s3://aind-open-data/diSPIM_647459_2022-12-21_00-39-00/diSPIM.zarr"
+    tile_transforms: dict[int, list[dict]] = {}
+
+    s3_list = s3_path.split("/")
+    dataset_name = s3_list[4]
+    dataset_list = dataset_name.split(".")
+    dataset_type = dataset_list[0]
+
+    if dataset_type == "diSPIM":
+        tile_transforms: dict[
+            int, list[dict]
+        ] = xml_parsing.extract_tile_transforms(xml_path)
+
     net_transforms: dict[
         int, np.ndarray
     ] = link_utils.calculate_net_transforms(tile_transforms)
@@ -105,16 +95,14 @@ def generate_exaspim_link(
         }
     )
 
-    for tile_id, _ in enumerate(net_transforms):
-        net_tf = net_transforms[tile_id]
-        t_path = tile_paths[tile_id]
+    for tile_id, t_path in tile_paths.items():
+        source_dict = {"url": f"{s3_path}/{t_path}"}
+        if dataset_type == "diSPIM":
+            net_tf = net_transforms[tile_id]
+            final_transform = link_utils.convert_matrix_3x4_to_5x6(net_tf)
+            source_dict["transform_matrix"] = final_transform.tolist()
 
-        url = f"{s3_path}/{t_path}"
-        final_transform = link_utils.convert_matrix_3x4_to_5x6(net_tf)
-
-        sources.append(
-            {"url": url, "transform_matrix": final_transform.tolist()}
-        )
+        sources.append(source_dict)
 
     # Generate the link
     neuroglancer_link = NgState(
