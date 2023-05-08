@@ -1,5 +1,5 @@
 """
-Library for generating raw link for visualizing tiles in nominal position. 
+Library for generating raw link for visualizing tiles in nominal position.
 """
 import numpy as np
 
