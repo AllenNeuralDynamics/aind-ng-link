@@ -3,10 +3,7 @@ Library for generating dispim link.
 """
 import numpy as np
 
-from ng_link import NgState
-
-import xml_parsing
-import link_utils
+from ng_link import NgState, link_utils, xml_parsing
 
 
 def apply_deskewing(matrix_3x4: np.ndarray, theta: float = 45) -> np.ndarray:
@@ -36,6 +33,7 @@ def apply_deskewing(matrix_3x4: np.ndarray, theta: float = 45) -> np.ndarray:
     matrix_3x4 = deskew @ matrix_3x4
 
     return matrix_3x4
+
 
 def generate_dispim_link(
     base_channel_xml_path: str,
@@ -187,7 +185,11 @@ def generate_dispim_link(
             net_tf = apply_deskewing(net_tf, deskew_angle)
 
             # Add (path, transform) source entry
-            url = f"{s3_path}/{t_path}"
+            if s3_path.endswith("/"):
+                url = f"{s3_path}{t_path}"
+            else:
+                url = f"{s3_path}/{t_path}"
+
             final_transform = link_utils.convert_matrix_3x4_to_5x6(net_tf)
             sources.append(
                 {"url": url, "transform_matrix": final_transform.tolist()}

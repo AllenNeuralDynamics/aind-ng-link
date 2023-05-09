@@ -137,3 +137,7 @@ dmypy.json
 
 # MacOs
 **/.DS_Store
+
+# Tester Files
+*.xml
+process_output.json

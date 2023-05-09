@@ -1,9 +1,10 @@
 """
 Utilities for nueroglancer links.
 """
-from collections import defaultdict
-import numpy as np
 import re
+from collections import defaultdict
+
+import numpy as np
 
 
 def calculate_net_transforms(
