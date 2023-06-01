@@ -6,8 +6,6 @@ from pathlib import Path
 from typing import List, Optional, Union
 
 import boto3
-# import neuroglancer
-import pandas as pd
 from botocore.exceptions import ClientError
 
 from ng_link import NgState
