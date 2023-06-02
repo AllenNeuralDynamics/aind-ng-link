@@ -14,7 +14,7 @@ from typing import Dict, List, Optional, Union, get_args
 import neuroglancer
 import numpy as np
 
-from .utils import utils
+from .utils import shader_utils, utils
 
 # IO types
 PathLike = Union[str, Path]
@@ -44,7 +44,7 @@ class ObjProxy(NamespaceProxy):
         ]
         DISALLOWED.add("__class__")
         new_dict = {}
-        for (attr, value) in inspect.getmembers(real_cls, callable):
+        for attr, value in inspect.getmembers(real_cls, callable):
             if attr not in DISALLOWED or attr in ALLOWED:
                 new_dict[attr] = cls._proxy_wrap(attr)
         return new_dict
@@ -139,7 +139,6 @@ def generate_precomputed_cells(cells, path, res):
         f.write(json.dumps(metadata))
 
     with open(os.path.join(output_path, "0_0_0"), "wb") as outfile:
-
         start_t = time.time()
 
         total_count = len(cell_list)  # coordinates is a list of tuples (x,y,z)
@@ -147,7 +146,6 @@ def generate_precomputed_cells(cells, path, res):
         print("Running multiprocessing")
 
         if not isinstance(buf, type(None)):
-
             buf.extend(struct.pack("<Q", total_count))
 
             with multiprocessing.Pool(processes=os.cpu_count()) as p:
@@ -161,10 +159,9 @@ def generate_precomputed_cells(cells, path, res):
             )
             buf.extend(id_buf)
         else:
-
             buf = struct.pack("<Q", total_count)
 
-            for (x, y, z) in cell_list:
+            for x, y, z in cell_list:
                 pt_buf = struct.pack("<3f", x, y, z)
                 buf += pt_buf
 
@@ -371,7 +368,6 @@ class SegmentationLayer:
         actual_state = self.__layer_state
 
         if "precomputed://" in source:
-
             write_path = Path(source.replace("precomputed://", ""))
             s3_path = self.__set_s3_path(str(write_path))
 
@@ -634,7 +630,6 @@ class AnnotationLayer:
             actual_state["source"] = f"precomputed://{s3_path}"
 
         else:
-
             actual_state["source"] = source
             actual_state = self.__set_transform(self.output_dimensions)
 
@@ -953,7 +948,6 @@ class ImageLayer:
 
         s3_path = None
         if not orig_source_path.startswith(f"{self.mount_service}://"):
-
             # Work with code ocean
             if "/scratch/" in orig_source_path:
                 orig_source_path = orig_source_path.replace("/scratch/", "")
@@ -1186,28 +1180,26 @@ class ImageLayer:
             String with the shader configuration for neuroglancer.
         """
 
-        color = shader_config["color"]
-        emitter = shader_config["emitter"]
-        vec = shader_config["vec"]
-
-        # Add all necessary ui controls here
-        ui_controls = [
-            f'#uicontrol {vec} color color(default="{color}")',
-            "#uicontrol invlerp normalized",
-        ]
-
-        # color emitter
-        emit_color = (
-            "void main() {\n" + f"emit{emitter}(color * normalized());" + "\n}"
-        )
-        shader_string = ""
-
-        for ui_control in ui_controls:
-            shader_string += ui_control + "\n"
-
-        shader_string += emit_color
-
-        return shader_string
+        monochrome_keys = set(["color", "emitter", "vec"])
+        rgb_keys = set(["r_range", "g_range", "b_range"])
+        config_keys = set(shader_config.keys())
+        if config_keys == monochrome_keys:
+            return shader_utils.create_monochrome_shader(
+                color=shader_config["color"],
+                emitter=shader_config["emitter"],
+                vec=shader_config["vec"],
+            )
+        elif config_keys == rgb_keys:
+            return shader_utils.create_rgb_shader(
+                r_range=shader_config["r_range"],
+                g_range=shader_config["g_range"],
+                b_range=shader_config["b_range"],
+            )
+        else:
+            raise RuntimeError(
+                f"Do not know how to create shader code for shader_config "
+                f"with keys {list(shader_config.keys())}"
+            )
 
     @property
     def opacity(self) -> str:

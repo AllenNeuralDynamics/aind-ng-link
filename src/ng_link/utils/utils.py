@@ -74,7 +74,6 @@ def execute_command_helper(
     print_command: bool = False,
     stdout_log_file: Optional[PathLike] = None,
 ) -> None:
-
     """
     Execute a shell command.
 
@@ -194,7 +193,6 @@ def save_dict_as_json(
 
 
 def read_json_as_dict(filepath: str) -> dict:
-
     """
     Reads a json as dictionary.
 
