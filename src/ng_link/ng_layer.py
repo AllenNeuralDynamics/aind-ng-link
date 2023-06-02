@@ -130,7 +130,7 @@ def generate_precomputed_cells(cells, path, res):
                 "key": "spatial0",
                 "grid_shape": [1] * res.rank,
                 "chunk_size": [max(1, float(x)) for x in u_bounds - l_bounds],
-                "limit": len(cells),
+                "limit": len(cell_list),
             },
         ],
     }
