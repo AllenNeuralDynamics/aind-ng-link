@@ -1,8 +1,6 @@
 """Tests ng layer class methods."""
 import unittest
 
-import pytest
-
 from ng_link.ng_layer import ImageLayer
 
 
@@ -31,7 +29,7 @@ class NgLayerTest(unittest.TestCase):
         expected += "emitRGB(color * normalized());\n"
         expected += "}"
 
-        assert layer.shader == expected
+        self.assertEqual(layer.shader, expected)
 
     def test_image_layer_rgb_shader(self):
         """
@@ -63,7 +61,7 @@ class NgLayerTest(unittest.TestCase):
         expected += "float b = normalized_b(getDataValue(2));\n"
         expected += "emitRGB(vec3(r, g, b));\n}\n"
 
-        assert layer.shader == expected
+        self.assertEqual(layer.shader, expected)
 
     def test_image_layer_shader_failure(self):
         """
@@ -72,14 +70,15 @@ class NgLayerTest(unittest.TestCase):
         """
         image_config = {"shader": {"foo": "bar"}, "source": "bogus.zarr"}
 
-        msg = "Do not know how to create shader code"
-        with pytest.raises(RuntimeError, match=msg):
-            ImageLayer(
-                image_config=image_config,
-                mount_service="s3",
-                bucket_path="silly/bucket",
-                output_dimensions=dict(),
-            )
+        self.assertRaisesRegex(
+            RuntimeError,
+            "Do not know how to create shader code",
+            ImageLayer,
+            image_config=image_config,
+            mount_service="s3",
+            bucket_path="silly/bucket",
+            output_dimensions=dict(),
+        )
 
 
 if __name__ == "__main__":
