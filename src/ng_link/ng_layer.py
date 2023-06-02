@@ -1188,12 +1188,18 @@ class ImageLayer:
         """
 
         monochrome_keys = set(['color', 'emitter', 'vec'])
+        rgb_keys = set(['r_range', 'g_range', 'b_range'])
         config_keys = set(shader_config.keys())
         if config_keys == monochrome_keys:
             return shader_utils.create_monochrome_shader(
                 color=shader_config['color'],
                 emitter=shader_config['emitter'],
                 vec=shader_config['vec'])
+        elif config_keys == rgb_keys:
+            return shader_utils.create_rgb_shader(
+                r_range=shader_config['r_range'],
+                g_range=shader_config['g_range'],
+                b_range=shader_config['b_range'])
         else:
             raise RuntimeError(
                 f"Do not know how to create shader code for shader_config "
