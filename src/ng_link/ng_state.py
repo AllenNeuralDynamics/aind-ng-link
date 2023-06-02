@@ -70,7 +70,6 @@ class NgState:
         self.initialize_attributes(self.input_config)
 
     def __fix_output_json_path(self, output_json: PathLike) -> str:
-
         """
         Fixes the json output path to have a similar structure for all links.
 
@@ -155,7 +154,6 @@ class NgState:
 
     @dimensions.setter
     def dimensions(self, new_dimensions: dict) -> None:
-
         """
         Set dimensions with voxel sizes for the image.
 
@@ -179,7 +177,6 @@ class NgState:
         regex_axis = r"([x-zX-Z])$"
 
         for axis, axis_values in new_dimensions.items():
-
             if re.search(regex_axis, axis):
                 self.__dimensions[axis] = self.__unpack_axis(axis_values)
             elif axis == "t":
@@ -761,7 +758,6 @@ def dispim_example():
         new_affine_transform = affine_transform.copy()
 
         for n_tile in list_n_tiles:
-
             n_tile = str(n_tile)
 
             if len(n_tile) == 1:
@@ -822,7 +818,6 @@ def dispim_example():
     visible = True
 
     for camera_index in camera_indexes:
-
         if camera_index == 1:
             # Mirror Z stack and apply same angle for cam0
             ng_affine_transform[2, 2] = -1

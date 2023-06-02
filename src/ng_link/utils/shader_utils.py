@@ -1,10 +1,10 @@
+"""
+Module containing utility functions to generate neuroglancer shader code
+"""
 from typing import Tuple
 
 
-def create_monochrome_shader(
-        color: str,
-        emitter: str,
-        vec: str) -> str:
+def create_monochrome_shader(color: str, emitter: str, vec: str) -> str:
     """
     Creates a configuration for the neuroglancer shader.
     This shader generates a monochromatic image.
@@ -46,9 +46,10 @@ def create_monochrome_shader(
 
 
 def create_rgb_shader(
-        r_range: Tuple[int, int],
-        g_range: Tuple[int, int],
-        b_range: Tuple[int, int]) -> str:
+    r_range: Tuple[int, int],
+    g_range: Tuple[int, int],
+    b_range: Tuple[int, int],
+) -> str:
     """
     Return shader code for an RGB image with different dynamic
     ranges for each channel.
@@ -64,7 +65,7 @@ def create_rgb_shader(
 
     Returns
     -------
-    code: str
+    str
         String containing the shader code for a neuroglancer
         RGB image.
     """
