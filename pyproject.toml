@@ -6,7 +6,7 @@ build-backend = "setuptools.build_meta"
 name = "aind-ng-link"
 description = "Python package for the generation of neuroglancer links"
 license = {text = "MIT"}
-requires-python = ">=3.7"
+requires-python = ">=3.8"
 authors = [
     {name = "David Feng", email="david.feng@alleninstitute.org"},
     {name = "Sharmishtaa Seshamani", email="sharmishtaas@alleninstitute.org"},
