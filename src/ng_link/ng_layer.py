@@ -14,7 +14,8 @@ from typing import Dict, List, Optional, Union, get_args
 import neuroglancer
 import numpy as np
 
-from .utils import utils
+from .utils import utils, shader_utils
+
 
 # IO types
 PathLike = Union[str, Path]
@@ -1186,28 +1187,18 @@ class ImageLayer:
             String with the shader configuration for neuroglancer.
         """
 
-        color = shader_config["color"]
-        emitter = shader_config["emitter"]
-        vec = shader_config["vec"]
+        monochrome_keys = set(['color', 'emitter', 'vec'])
+        config_keys = set(shader_config.keys())
+        if config_keys == monochrome_keys:
+            return shader_utils.create_monochrome_shader(
+                color=shader_config['color'],
+                emitter=shader_config['emitter'],
+                vec=shader_config['vec'])
+        else:
+            raise RuntimeError(
+                f"Do not know how to create shader code for shader_config "
+                f"with keys {list(shader_config.keys())}")
 
-        # Add all necessary ui controls here
-        ui_controls = [
-            f'#uicontrol {vec} color color(default="{color}")',
-            "#uicontrol invlerp normalized",
-        ]
-
-        # color emitter
-        emit_color = (
-            "void main() {\n" + f"emit{emitter}(color * normalized());" + "\n}"
-        )
-        shader_string = ""
-
-        for ui_control in ui_controls:
-            shader_string += ui_control + "\n"
-
-        shader_string += emit_color
-
-        return shader_string
 
     @property
     def opacity(self) -> str:
