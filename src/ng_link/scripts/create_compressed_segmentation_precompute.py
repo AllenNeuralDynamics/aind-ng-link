@@ -10,6 +10,7 @@ import json
 import dask
 
 import numpy as np
+import pandas as pd
 import dask.array as da
 
 from pathlib import Path
@@ -435,7 +436,7 @@ class ng_compressed_segmentation():
     
         return bit_stream
     
-    def bits_to_bytes(self, bit_stream: np.array):
+    def bits_to_bytes(self, bit_stream):
         """
         Convert a bit stream (as produced by block_to_bits) to
         a byte stream that can be written out to the compressed
@@ -467,7 +468,7 @@ class ng_compressed_segmentation():
         return bytes(byte_stream)
     
     
-    def get_block_lookup_table(self, data) -> dict:
+    def get_block_lookup_table(self, data):
         """
         Get the lookup table for encoded values in data.
     
