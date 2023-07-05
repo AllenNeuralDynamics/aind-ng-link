@@ -205,12 +205,12 @@ class ng_compressed_segmentation():
     
     def build_compression(self, img: np.array, level: float) -> list:
         """
-        Takes numpy array of segmenations and converts to byte stream compatable
-        with neuroglancer precomputed compressed segmentation
+        Takes numpy array of segmenations and converts to byte stream 
+        compatable with neuroglancer precomputed compressed segmentation
 
         Parameters
         ----------
-        img : np.array
+        img: np.array
             3D array of segmenation values
         level: float
             the factor by which the current image needs to be scaled
