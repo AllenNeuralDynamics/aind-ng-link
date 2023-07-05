@@ -438,9 +438,9 @@ class ng_compressed_segmentation():
     
     def bits_to_bytes(self, bit_stream):
         """
-        Convert a bit stream (as produced by block_to_bits) to
-        a byte stream that can be written out to the compressed
-        data file.
+        Convert the bit stram produced by block_to_bits to
+        a byte stream that can be written out to the 
+        compressed data file.
         """
     
         n_bits = len(bit_stream)
@@ -471,7 +471,7 @@ class ng_compressed_segmentation():
     def get_block_lookup_table(self, data):
         """
         Get the lookup table for encoded values in data.
-    
+        
         Returns
         -------
         dict mapping raw values to encoded values
