@@ -436,11 +436,23 @@ class ng_compressed_segmentation():
     
         return bit_stream
     
-    def bits_to_bytes(self, bit_stream):
+    def bits_to_bytes(self, bit_stream: np.array) -> bytes:
         """
-        Convert the bit stram produced by block_to_bits to
-        a byte stream that can be written out to the 
-        compressed data file.
+        Convert the bit stream produced  to a byte 
+        stream that can be written out to the 
+        compressed data file
+
+        Parameters
+        ----------
+        bit_stream: np.ndarray
+            Data from block_to_bits to convert into
+            bytes
+
+        Returns
+        -------
+        byte_stream: bytes
+            Bit data converted to a byte stream
+        
         """
     
         n_bits = len(bit_stream)
@@ -468,13 +480,19 @@ class ng_compressed_segmentation():
         return bytes(byte_stream)
     
     
-    def get_block_lookup_table(self, data):
+    def get_block_lookup_table(self, data: np.array) -> dict:
         """
         Get the lookup table for encoded values in data.
+
+        Parameters
+        ----------
+        data: np.array
+            cubic block containing segment IDs
         
         Returns
         -------
-        dict mapping raw values to encoded values
+        table: dict 
+            Mapping between raw values to encoded values
     
         byte stream representing the lookup table of raw values
         (this is just a sequence of values; the value's position
