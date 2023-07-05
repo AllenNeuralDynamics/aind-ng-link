@@ -14,7 +14,6 @@ import trimesh
 import subprocess
 
 import numpy as np
-import pandas as pd
 
 from glob import glob
 from pathlib import Path
@@ -31,11 +30,11 @@ class ng_mesh_precompute():
     
     def __init__(
         self,
-        save_path: Pathlike,
+        save_path: PathLike,
         resolution: List[int],
         dimensions: Optional[List[int]] = [13200, 8000, 11400],
         voxel_offest: Optional[List[int]] = [0, 0, 0],
-        tmp_path: Optional[Pathlike] = '/scratch/'
+        tmp_path: Optional[PathLike] = '/scratch/'
     ) -> None:
     
 
@@ -45,18 +44,19 @@ class ng_mesh_precompute():
         Parameters
         ------------------------
         save_path: Pathlike
-            Location for saving the precomputed format (i.e. '/path/to/mesh_precomputed')
+            Location for saving the precomputed format
         resolution: list
             resolution of SWC in each dimention (nm): [AP, DV, ML]
         dimentions: Optional[List[int]]
-            dimentions of the tissue volume in (um): [AP, DV, ML]. Default are for a 1um CCF [13200, 8000, 11400]
+            dimentions of the tissue volume in (um): [AP, DV, ML]. 
+            Default are for a 1um CCF [13200, 8000, 11400]
         voxel_offset: Optional[List[int]]
             Offest of SWC relative to origin. Default is no offset [0, 0, 0]
         """
     
         self.save_path = save_path
         self.resolution = resolution
-        self.dimentions = dimentions
+        self.dimensions = dimensions
         self.chunk_size = resolution
         self.tmp_path = tmp_path
     
@@ -83,8 +83,8 @@ class ng_mesh_precompute():
         Returns
         -------
         m_bytes: byte stream
-            Byte stream of verticies and faces in neuroglancer precomputed format
-
+            Byte stream of verticies and faces in neuroglancer precomputed 
+            format
         '''
     
         verts = np.asarray(m.vertices)
@@ -136,7 +136,7 @@ class ng_mesh_precompute():
             "@type": "neuroglancer_legacy_mesh",
         }
     
-        with open(os.path.join(mesh_path, 'info'), 'w') as f:
+        with open(os.path.join(self.mesh_path, 'info'), 'w') as f:
             f.write(json.dumps(info_file_2))
     
     def write_fragment_files(self, count: int, m_bytes: bytes) -> None:
@@ -240,8 +240,8 @@ def main(params: dict) -> None:
 if __name__ == "__main__":
     
     '''
-    This is parameterized for codeocean. The swc path is a data asset containing
-    a folder that has all swc files for a given brain
+    This is parameterized for codeocean. The swc path is a data asset 
+    containing a folder that has all swc files for a given brain
     '''
     
     params = {
