@@ -10,7 +10,6 @@ import json
 import dask
 
 import numpy as np
-import pandas as pd
 import dask.array as da
 
 from pathlib import Path
@@ -156,25 +155,25 @@ class ng_compressed_segmentation():
         Parameters
         ----------
         sub_array : array
-            Numpy array corresponding to the size of a block prior to scaling to
-            chunk size associated with the compressed segmentation
+            Numpy array corresponding to the size of a block prior to scaling
+            t0 chunk size associated with the compressed segmentation
         factor : float
-            How to scale input array. Numbers larger than 1 upsample, smaller
-            than 1 downsample
+            How to scale input array. Numbers larger than 1 upsample, 
+            smaller than 1 downsample
         blocksize int: 
             Size of block for compressed encoding
 
         Raises
         ------
         RuntimeError
-            Compressed segmentations must be chuncked in cubes, therefore if
-            shape is not a cube, throw error.
+            Compressed segmentations must be chuncked in cubes, therefore 
+            if shape is not a cube, throw error.
 
         Returns
         -------
         encoding_list: list
-            delayed output for the encoding of a given sub array into precomputed 
-            format
+            delayed output for the encoding of a given sub array into 
+            precomputed format
 
         """
         resample = zoom(np.asarray(sub_array), factor, order = 0) # order 0 gives nearest neighbor interpolation
@@ -218,14 +217,19 @@ class ng_compressed_segmentation():
         Returns
         -------
         List:
-            list containing a list of file names and a list of delayed functions
+            list containing a list of file names and a list of delayed 
+            functions
 
         """
         
         b_size = int(self.chunk_size / level)
         data = da.from_array(img, chunks = (b_size, b_size, b_size))
         
-        level_dir = os.path.join(self.save_path, "_".join([str(r / level) for r in self.resolution]))
+        level_dir = os.path.join(self.save_path, "_".join(
+            [str(r / level) for r in self.resolution]
+            )
+        )
+        
         os.mkdir(level_dir)
         
         output = []
@@ -431,7 +435,7 @@ class ng_compressed_segmentation():
     
         return bit_stream
     
-    def bits_to_bytes(self, bit_stream: np.array) -> bytes:
+    def bits_to_bytes(self, bit_stream: np.array):
         """
         Convert a bit stream (as produced by block_to_bits) to
         a byte stream that can be written out to the compressed
@@ -463,7 +467,7 @@ class ng_compressed_segmentation():
         return bytes(byte_stream)
     
     
-    def get_block_lookup_table(self, data: bytes) -> dict:
+    def get_block_lookup_table(self, data) -> dict:
         """
         Get the lookup table for encoded values in data.
     
