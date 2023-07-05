@@ -42,18 +42,22 @@ class ng_compressed_segmentation():
         Parameters
         ------------------------
         save_path: Pathlike
-            Location for saving the precomputed format (i.e. '/path/to/seg_precomputed')
+            Location for saving the precomputed format
         resolution: List[int]
             Resolution of each axis in the highest resolution volume (nm):
         dimentions: List[int]
             Dimentions of the tissue volume in voxels
         levels: List[int]
-            fracotrs by which to up or downsample resolutions for segmentation pyramid relative to image.
-            values greater than 1 upsample and values less than 1 downsample (e.g. 2 doubles resolution and 0.5 halves resolution)
+            factors by which to up or downsample resolutions for segmentation 
+            pyramid relative to image. Values greater than 1 upsample and 
+            values less than 1 downsample (e.g. 2 doubles resolution and 0.5 
+            halves resolution)
         chunk_size: int
-            Chunk size (int**3) of each individual chunk. Common to use zarr chunk size 
+            Chunk size (int**3) of each individual chunk. Common to use zarr
+            chunk size 
         compressed_encoding_size: int
-            Chunk size (int**3) for each compressed sub-chunk. Common value is cunk_size/2
+            Chunk size (int**3) for each compressed sub-chunk. Common value is
+            cunk_size/2
         """
         
         self.save_path = save_path
@@ -71,13 +75,13 @@ class ng_compressed_segmentation():
     
     def write_info_file(self) -> None:
         """
-        Creates an info file in the main precomputed folder for a multi-scale
-        compressed segmentation
+        Creates an info file in the main precomputed folder for a 
+        multi-scale compressed segmentation
         """
         scales = []
         
-        for l in range(self.levels):
-            res = [int(r / l) for r in self.resolution]
+        for level in range(self.levels):
+            res = [int(r / level) for r in self.resolution]
             current_scale = {
                 "chunk_sizes": [
                     self.chunk_size,
@@ -92,7 +96,7 @@ class ng_compressed_segmentation():
                 ],
                 "key": "_".join([str(r) for r in res]),
                 "resolution": res,
-                "size": [int(d * l) for d in self.dimensions],
+                "size": [int(d * level) for d in self.dimensions],
             }
 
         scales.append(current_scale)
@@ -427,7 +431,7 @@ class ng_compressed_segmentation():
     
         return bit_stream
     
-    def bits_to_bytes(self, bit_stream: np.array) ->bytes:
+    def bits_to_bytes(self, bit_stream: np.array) -> bytes:
         """
         Convert a bit stream (as produced by block_to_bits) to
         a byte stream that can be written out to the compressed
