@@ -438,7 +438,7 @@ class ng_compressed_segmentation:
 
         for i_bit in range(n_bits):
             detections = block & bit_masks[i_bit]
-            bit_stream[i_bit : detections.size * n_bits : n_bits] = (
+            bit_stream[i_bit:detections.size * n_bits:n_bits] = (
                 detections > 0
             )
 
@@ -483,7 +483,7 @@ class ng_compressed_segmentation:
 
         # transcribe values in byte stream
         for i_val, val in enumerate(values):
-            byte_stream[i_val * 4 : (i_val + 1) * 4] = int(val).to_bytes(
+            byte_stream[i_val * 4:(i_val + 1) * 4] = int(val).to_bytes(
                 4, byteorder="little", signed=False
             )
 
