@@ -470,6 +470,26 @@ def smartspim_example():
             "x": {"voxel_size": 1.8, "unit": "microns"},
             "t": {"voxel_size": 0.001, "unit": "seconds"},
         },
+        "position": [
+            1900.5,
+            4400.5,
+            3800.5,
+            0.5
+        ],
+        "crossSectionOrientation": [
+             0.5,
+             0.5,
+             -0.5,
+             0.5
+        ],
+        "crossSectionScale": 10.0,
+        "projectionOrientation": [
+            0.641,
+            0.660,
+            0.004,
+            0.391            
+        ],
+        "projectionScale": 13000.0,
         "layers": [
             {
                 "source": "image_path.zarr",
