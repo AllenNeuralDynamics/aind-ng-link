@@ -1,33 +1,50 @@
 """
-Library for generating exaspim link.
+Exaspim link generation. 
+Distinct to exaspim link: 
+    - Remove zattrs position
 """
+import json
 import numpy as np
+from pathlib import Path
 
 from ng_link import NgState, link_utils, xml_parsing
 
-
-def omit_initial_offsets(view_transforms: dict[int, list[dict]]) -> None:
+def get_zattrs_positions(dataset_path: str) -> dict[str, np.ndarray]:
     """
-    For OME-Zarr datasets, inital offsets are
-    already encoded in the metadata and extracted my neuroglancer.
-    This function removes the duplicate transform.
-
-    Parameters
-    ------------------------
-    view_transforms: dict[int, list[dict]]
-        Dictionary of tile ids to list of transforms.
-
-    Returns
-    ------------------------
-    None
+    Parameters: 
+        dataset_path: Path to mounted dataset
+    Returns: 
+        tile_positions: Map of tilename -> zattrs translations
     """
 
-    for view, tfs in view_transforms.items():
-        tfs.pop(0)
+    def read_json(json_path: str) -> dict: 
+        with open(json_path) as f:
+            return json.load(f)
+
+    tile_positions = {}
+    for tile_path in Path(dataset_path).iterdir():
+        if tile_path.name == '.zgroup':
+            continue
+
+        zattrs_file = tile_path / '.zattrs'
+        zattrs_json = read_json(zattrs_file)
+        
+        scale = zattrs_json['multiscales'][0]["datasets"][0]["coordinateTransformations"][0]['scale']
+        translation = zattrs_json['multiscales'][0]["datasets"][0]["coordinateTransformations"][1]['translation']
+ 
+        scale = np.array(scale[2:][::-1])
+        translation = np.array(translation[2:][::-1])
+        translation /= scale
+        translation = np.round(translation, 4)
+
+        tile_positions[tile_path.name] = translation
+
+    return tile_positions
 
 
 def generate_exaspim_link(
     xml_path: str,
+    dataset_path: str, 
     s3_path: str,
     max_dr: int = 200,
     opacity: float = 1.0,
@@ -40,9 +57,12 @@ def generate_exaspim_link(
     Parameters
     ------------------------
     xml_path: str
-        Path of xml outputted by BigStitcher.
+        Path of mounted xml output by BigStitcher.
+    dataset_path: str
+        Path of mounted dataset. 
     s3_path: str
         Path of s3 bucket where exaspim dataset is located.
+        Function reads data from mount, but need s3 information within NG configuration. 
     output_json_path: str
         Local path to write process_output.json file that nueroglancer reads.
 
@@ -59,10 +79,25 @@ def generate_exaspim_link(
     tile_transforms: dict[
         int, list[dict]
     ] = xml_parsing.extract_tile_transforms(xml_path)
-    omit_initial_offsets(tile_transforms)
-    net_transforms: dict[
-        int, np.ndarray
-    ] = link_utils.calculate_net_transforms(tile_transforms)
+    
+    # Zattrs info
+    zattrs_positions = get_zattrs_positions(dataset_path)
+
+    # Update first translation in each tile's tile_transforms list
+    for tile_id, tf in tile_transforms.items():
+
+        t_path = tile_paths[tile_id]
+        zattrs_offset = zattrs_positions[t_path]
+
+        nums = [float(val) for val in tf[0]["affine"].split(" ")]
+        nums[3] = nums[3] - zattrs_offset[0]
+        nums[7] = nums[7] - zattrs_offset[1]
+        nums[11] = nums[11] - zattrs_offset[2]
+
+        tf[0]['affine'] = "".join(f'{n} ' for n in nums)
+        tf[0]['affine'] = tf[0]['affine'].strip()
+
+    net_transforms: dict[int, np.ndarray] = link_utils.calculate_net_transforms(tile_transforms)
 
     # Determine color
     channel: int = link_utils.extract_channel_from_tile_path(tile_paths[0])

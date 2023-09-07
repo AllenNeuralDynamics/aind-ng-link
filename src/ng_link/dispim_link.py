@@ -1,10 +1,11 @@
 """
-Library for generating dispim link.
+Dispim link generation. 
+Distinct to dispim link: 
+    - Deskewing
 """
 import numpy as np
 
 from ng_link import NgState, link_utils, xml_parsing
-
 
 def apply_deskewing(matrix_3x4: np.ndarray, theta: float = 45) -> np.ndarray:
     """
@@ -36,9 +37,9 @@ def apply_deskewing(matrix_3x4: np.ndarray, theta: float = 45) -> np.ndarray:
 
 
 def generate_dispim_link(
-    base_channel_xml_path: str,
-    cross_channel_xml_path: str,
+    xml_path: str,
     s3_path: str,
+    channels: list[int] = [405, 488, 561, 638],
     max_dr: int = 800,
     opacity: float = 0.5,
     blend: str = "additive",
@@ -51,19 +52,10 @@ def generate_dispim_link(
 
     Parameters
     ------------------------
-    base_channel_xml_path: str
-        Path to xml file acquired from tile-to-tile
-        registration within the base channel.
-        These registrations are reused for
-        registering tiles in all other channels.
-
-    cross_channel_xml_path: str
-        Path to xml file acquired from channel-to-channel registration.
-        These registrations are prepended to each tile registration.
-
+    xml_path: str
+        Path of mounted xml output by BigStitcher.
     s3_path: str
         Path of s3 bucket where dipim dataset is located.
-
     output_json_path: str
         Local path to write process_output.json file that nueroglancer reads.
 
@@ -74,50 +66,14 @@ def generate_dispim_link(
 
     # Gather base channel xml info
     vox_sizes: tuple[float, float, float] = xml_parsing.extract_tile_vox_size(
-        base_channel_xml_path
+        xml_path
     )
-    tile_paths: dict[int, str] = xml_parsing.extract_tile_paths(
-        base_channel_xml_path
-    )
+    tile_paths: dict[int, str] = xml_parsing.extract_tile_paths(xml_path)
     tile_transforms: dict[
         int, list[dict]
-    ] = xml_parsing.extract_tile_transforms(base_channel_xml_path)
-    intertile_transforms: dict[
-        int, np.ndarray
-    ] = link_utils.calculate_net_transforms(tile_transforms)
-    base_channel: int = link_utils.extract_channel_from_tile_path(
-        tile_paths[0]
-    )
+    ] = xml_parsing.extract_tile_transforms(xml_path)
 
-    # Gather cross channel xml info, only care about transforms
-    # Massaging transforms into same format as 'intertile_transforms'.
-    channel_paths: dict[int, str] = xml_parsing.extract_tile_paths(
-        cross_channel_xml_path
-    )
-    channels: list[int] = [
-        link_utils.extract_channel_from_tile_path(cp)
-        for cp in channel_paths.values()
-    ]
-
-    channel_transforms = xml_parsing.extract_tile_transforms(
-        cross_channel_xml_path
-    )
-    channel_transforms = {
-        anchor_id: tfs[-1] for anchor_id, tfs in channel_transforms.items()
-    }
-    tmp = {}
-    for channel_id, tfm in channel_transforms.items():
-        nums = [float(val) for val in tfm["affine"].split(" ")]
-        tmp[channel_id] = np.hstack(
-            (
-                np.array([nums[0::4], nums[1::4], nums[2::4]]),
-                np.array(nums[3::4]).reshape(3, 1),
-            )
-        )
-    channel_transforms = tmp
-    channel_transforms = {
-        ch: ch_tf for ch, ch_tf in zip(channels, channel_transforms.values())
-    }
+    net_transforms: dict[int, np.ndarray] = link_utils.calculate_net_transforms(tile_transforms)
 
     # Generate input config
     layers = []  # Represent Neuroglancer Tabs
@@ -134,7 +90,7 @@ def generate_dispim_link(
         "showAxisLines": False,
     }
 
-    for channel, channel_tf in channel_transforms.items():
+    for channel in channels:
         # Determine color of this layer
         hex_val: int = link_utils.wavelength_to_hex(channel)
         hex_str = f"#{str(hex(hex_val))[2:]}"
@@ -161,36 +117,13 @@ def generate_dispim_link(
             }
         )
 
-        for tile_id in range(len(intertile_transforms)):
-            # Get base tile path, modify path across channels
-            base_t_path = tile_paths[tile_id]
-            t_path = base_t_path.replace(f"{base_channel}", f"{channel}")
+        for tile_id, _ in enumerate(net_transforms):
+            net_tf = net_transforms[tile_id]
+            t_path = tile_paths[tile_id]
 
-            # Get net transform
-            intertile_tf = intertile_transforms[tile_id]
-            i_matrix_3x3 = intertile_tf[:, 0:3]
-            i_translation = intertile_tf[:, 3]
-
-            c_matrix_3x3 = channel_tf[:, 0:3]
-            c_translation = channel_tf[:, 3]
-
-            net_matrix_3x3 = (
-                i_matrix_3x3 @ c_matrix_3x3
-            )  # NOTE: Right-multiply
-            net_translation = (
-                np.linalg.inv(c_matrix_3x3) @ i_translation
-            ) + c_translation
-            net_tf = np.hstack((net_matrix_3x3, net_translation.reshape(3, 1)))
-
-            net_tf = apply_deskewing(net_tf, deskew_angle)
-
-            # Add (path, transform) source entry
-            if s3_path.endswith("/"):
-                url = f"{s3_path}{t_path}"
-            else:
-                url = f"{s3_path}/{t_path}"
-
+            url = f"{s3_path}/{t_path}"
             final_transform = link_utils.convert_matrix_3x4_to_5x6(net_tf)
+
             sources.append(
                 {"url": url, "transform_matrix": final_transform.tolist()}
             )
