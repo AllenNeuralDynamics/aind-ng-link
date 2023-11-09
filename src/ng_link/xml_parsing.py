@@ -6,7 +6,6 @@ from collections import OrderedDict
 import xmltodict
 
 
-
 def extract_dataset_path(xml_path: str) -> dict[int, str]:
     """
     Parses BDV xml and outputs map of setup_id -> tile path.
@@ -28,9 +27,9 @@ def extract_dataset_path(xml_path: str) -> dict[int, str]:
         data: OrderedDict = xmltodict.parse(file.read())
 
     dataset_path = data["SpimData"]["SequenceDescription"]["ImageLoader"]["zarr"]
-        
 
     return dataset_path["#text"]
+
 
 def extract_tile_paths(xml_path: str) -> dict[int, str]:
     """
@@ -114,7 +113,7 @@ def extract_tile_transforms(xml_path: str) -> dict[int, list[dict]]:
 
     for view_reg in data["SpimData"]["ViewRegistrations"]["ViewRegistration"]:
         tfm_stack = view_reg["ViewTransform"]
-        if type(tfm_stack) is not list:
+        if not isinstance(tfm_stack, list):
             tfm_stack = [tfm_stack]
         view_transforms[int(view_reg["@setup"])] = tfm_stack
 

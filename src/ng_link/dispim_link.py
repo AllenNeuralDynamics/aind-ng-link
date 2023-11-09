@@ -4,7 +4,8 @@ Library for generating dispim link.
 import numpy as np
 
 from ng_state import NgState
-import link_utils, xml_parsing
+import link_utils
+import xml_parsing
 import pathlib
 from utils import transfer
 
@@ -47,7 +48,7 @@ def generate_dispim_link(
     blend: str = "additive",
     deskew_angle: int = 45,
     output_json_path: str = ".",
-    spim_foldername = "SPIM.ome.zarr"
+    spim_foldername="SPIM.ome.zarr"
 ) -> None:
     """
     Creates an neuroglancer link to visualize
@@ -93,34 +94,8 @@ def generate_dispim_link(
         tile_paths[0]
     )
 
-    # Gather cross channel xml info, only care about transforms
-    # # Massaging transforms into same format as 'intertile_transforms'.
-    # if cross_channel_xml_path is None:
-    #     channel_transforms = np.concatenate(np.concatenate(np.eye(3), [0, 0, 0]), [[0,0,0,0]], axis = 1)
-    # else:
-    #     channel_transforms = xml_parsing.extract_tile_transforms(
-    #     cross_channel_xml_path
-    #     )
-
-    
-    channels: list[int] = link_utils.get_unique_channels_for_dataset(s3_path+spim_foldername)
-    # print(channels)
-
-
-    channel_transforms = intertile_transforms
-    # tmp = {}
-    # for channel_id, tfm in channel_transforms.items():
-    #     nums = [float(val) for val in tfm["affine"].split(" ")]
-    #     tmp[channel_id] = np.hstack(
-    #         (
-    #             np.array([nums[0::4], nums[1::4], nums[2::4]]),
-    #             np.array(nums[3::4]).reshape(3, 1),
-    #         )
-    #     )
-    # channel_transforms = tmp
-    # channel_transforms = {
-    #     ch: ch_tf for ch, ch_tf in zip(channels, channel_transforms.values())
-    # }
+    channels: list[int] = link_utils.get_unique_channels_for_dataset(
+        s3_path + spim_foldername)
 
     # Generate input config
     layers = []  # Represent Neuroglancer Tabs
@@ -128,7 +103,8 @@ def generate_dispim_link(
         "dimensions": {
             "x": {"voxel_size": vox_sizes[0], "unit": "microns"},
             "y": {"voxel_size": vox_sizes[1], "unit": "microns"},
-            "z": {"voxel_size": vox_sizes[2], "unit": "microns"}, #reverse the order from bigstitcher again
+            # reverse the order from bigstitcher again
+            "z": {"voxel_size": vox_sizes[2], "unit": "microns"},
             "c'": {"voxel_size": 1, "unit": ""},
             "t": {"voxel_size": 0.001, "unit": "seconds"},
         },
@@ -175,7 +151,7 @@ def generate_dispim_link(
             i_translation = intertile_tf[:, 3]
 
             net_matrix_3x3 = (
-                i_matrix_3x3 
+                i_matrix_3x3
             )  # NOTE: Right-multiply
             net_translation = (i_translation)
             net_tf = np.hstack((net_matrix_3x3, net_translation.reshape(3, 1)))
@@ -193,8 +169,8 @@ def generate_dispim_link(
                 {"url": url, "transform_matrix": final_transform.tolist()}
             )
 
-    bucket_name, prefix = s3_path.replace("s3://","").split("/",1)
-    prefix = prefix[:-1] #remove trailing '/'
+    bucket_name, prefix = s3_path.replace("s3://", "").split("/", 1)
+    prefix = prefix[:-1]  # remove trailing '/'
     # Generate the link
     neuroglancer_link = NgState(
         input_config=input_config,
@@ -207,41 +183,41 @@ def generate_dispim_link(
     print(neuroglancer_link.get_url_link())
     return neuroglancer_link.get_url_link()
 
-def ingest_xml_and_write_ng_link(xml_path: str, s3_bucket:str = "aind-open-data"):
+
+def ingest_xml_and_write_ng_link(
+        xml_path: str, s3_bucket: str = "aind-open-data"):
     """A wrapper function that autogenerates the s3_path for dispim_link.generate_dispim_link
-    
-    Automatically saves process_output.json, which can be manually uploaded to S3 bucket/dataset. 
-    
+
+    Automatically saves process_output.json, which can be manually uploaded to S3 bucket/dataset.
+
     Parameters:
     ----------
     xml_path: str
-        Relative path to xml file (bigstitcher format) that contains tile position information 
-    
+        Relative path to xml file (bigstitcher format) that contains tile position information
+
     s3_bucket:str
         name of s3 bucket where the dataset lives
-        
-    Return: 
+
+    Return:
     -------
     link: str
-    Neuroglancer link for xml dataset. 
-    
-    
+    Neuroglancer link for xml dataset.
+
+
     """
-    #read_xml and get dataset prefix for S3
+    # read_xml and get dataset prefix for S3
     dataset_path = xml_parsing.extract_dataset_path(xml_path)
     dataset_name = dataset_path.split("/")[2]
 
     # print(f"dataset_path {dataset_path}")
     # print(f"dataset_name {dataset_name}")
 
-    
     s3_path = f"s3://{s3_bucket}/{dataset_name}/"
-    
+
     output_folder = f"/results/{dataset_name}/"
 
     if not pathlib.Path(output_folder).exists():
         pathlib.Path(output_folder).mkdir(parents=True, exist_ok=True)
-
 
     link = generate_dispim_link(
         xml_path,
@@ -251,9 +227,8 @@ def ingest_xml_and_write_ng_link(xml_path: str, s3_bucket:str = "aind-open-data"
         blend="additive",
         output_json_path=output_folder)
 
-    #copy output json to s3 bucket dataset
+    # copy output json to s3 bucket dataset
 
-    transfer.copy_to_s3(output_folder+"process_output.json", s3_path)
-    
+    transfer.copy_to_s3(output_folder + "process_output.json", s3_path)
+
     return link
-

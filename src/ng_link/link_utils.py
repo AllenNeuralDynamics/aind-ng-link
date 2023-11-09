@@ -7,6 +7,7 @@ import pathlib
 import numpy as np
 import boto3
 
+
 def calculate_net_transforms(
     view_transforms: dict[int, list[dict]]
 ) -> dict[int, np.ndarray]:
@@ -44,21 +45,23 @@ def calculate_net_transforms(
         net_matrix_3x3 = np.eye(3)
         curr_inverse = np.eye(3)
 
-        for (tf) in (tfs):  # Tfs is a list of dicts containing transform under 'affine' key
+        for (tf) in (
+                tfs):  # Tfs is a list of dicts containing transform under 'affine' key
             nums = [float(val) for val in tf["affine"].split(" ")]
             matrix_3x3 = np.array([nums[0::4], nums[1::4], nums[2::4]])
             translation = np.array(nums[3::4])
-            
+
             # print(translation)
             # nums = np.array(nums).reshape(3,4)
             # matrix_3x3 = np.array([nums[:,0], nums[:,1], nums[:,2]]).T
             # translation = np.array(nums[:,3])
-            
+
             # net_translation = net_translation + (curr_inverse @ translation)
             net_translation = net_translation + (translation)
 
-            net_matrix_3x3 = net_matrix_3x3 @ matrix_3x3 
-            # curr_inverse = np.linalg.inv(net_matrix_3x3)  # Update curr_inverse
+            net_matrix_3x3 = net_matrix_3x3 @ matrix_3x3
+            # curr_inverse = np.linalg.inv(net_matrix_3x3)  # Update
+            # curr_inverse
 
         net_transforms[view] = np.hstack(
             (net_matrix_3x3, net_translation.reshape(3, 1))
@@ -90,33 +93,39 @@ def convert_matrix_3x4_to_5x6(matrix_3x4: np.ndarray) -> np.ndarray:
     # Swap Rows 0 and 2; Swap Colums 0 and 2
     patch = np.copy(matrix_3x4)
     patch[[0, 2], :] = patch[[2, 0], :]
-    patch[:, [0, 2]] = patch[:, [2, 0]]                            
+    patch[:, [0, 2]] = patch[:, [2, 0]]
 
     # Place patch in bottom-right corner
     matrix_5x6[2:6, 2:7] = patch
 
     return matrix_5x6
 
+
 def list_all_tiles_in_path(SPIM_folder: str) -> list:
     SPIM_folder = pathlib.Path(SPIM_folder)
     # assert SPIM_folder.exists()
-    
+
     return list(SPIM_folder.glob("*.zarr"))
 
-def list_all_tiles_in_bucket_path(bucket_SPIM_folder: str, bucket_name = "aind-open-data") -> list: 
+
+def list_all_tiles_in_bucket_path(
+        bucket_SPIM_folder: str, bucket_name="aind-open-data") -> list:
     # s3 = boto3.resource('s3')
-    bucket_name, prefix = bucket_SPIM_folder.replace("s3://","").split("/",1)
+    bucket_name, prefix = bucket_SPIM_folder.replace("s3://", "").split("/", 1)
     # my_bucket = s3.Bucket(bucket_name)
 
     client = boto3.client('s3')
-    result = client.list_objects(Bucket=bucket_name, Prefix=prefix+"/", Delimiter='/')
+    result = client.list_objects(
+        Bucket=bucket_name,
+        Prefix=prefix + "/",
+        Delimiter='/')
     # print(result)
     tiles = []
     for o in result.get('CommonPrefixes'):
         # print 'sub folder : ', o.get('Prefix')
-        tiles.append(o.get('Prefix')) 
+        tiles.append(o.get('Prefix'))
     return tiles
-    
+
 
 def extract_channel_from_tile_path(t_path: str) -> int:
     """
@@ -140,32 +149,34 @@ def extract_channel_from_tile_path(t_path: str) -> int:
     channel = int(match.group(2))
     return channel
 
-def get_unique_channels_for_dataset(dataset_path:str) -> list:
-    """ 
+
+def get_unique_channels_for_dataset(dataset_path: str) -> list:
+    """
     Extracts a list of channels in a given dataset
-    
-    Parameters: 
+
+    Parameters:
     -----------
     dataset_path: str
         Path to a dataset's zarr folder
-        
-    Returns: 
+
+    Returns:
     --------
     unique_list_of_channels: list(int)
         A list of int, containing the unique list of channel wavelengths
-    
+
     """
     if pathlib.Path(dataset_path).exists():
         tiles_in_path = list_all_tiles_in_path(dataset_path)
-    else: 
-        tiles_in_path = list_all_tiles_in_bucket_path(dataset_path, "aind-open-data")    
+    else:
+        tiles_in_path = list_all_tiles_in_bucket_path(
+            dataset_path, "aind-open-data")
     unique_list_of_channels = []
     for tile in tiles_in_path:
         channel = extract_channel_from_tile_path(tile)
-        
+
         if channel not in unique_list_of_channels:
             unique_list_of_channels.append(channel)
-    
+
     return unique_list_of_channels
 
 
