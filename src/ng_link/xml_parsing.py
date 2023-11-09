@@ -6,6 +6,32 @@ from collections import OrderedDict
 import xmltodict
 
 
+
+def extract_dataset_path(xml_path: str) -> dict[int, str]:
+    """
+    Parses BDV xml and outputs map of setup_id -> tile path.
+
+    Parameters
+    ------------------------
+    xml_path: str
+        Path of xml outputted from BigStitcher.
+
+    Returns
+    ------------------------
+    dict[int, str]:
+        Dictionary of tile ids to tile paths.
+
+    """
+
+    view_paths: dict[int, str] = {}
+    with open(xml_path, "r") as file:
+        data: OrderedDict = xmltodict.parse(file.read())
+
+    dataset_path = data["SpimData"]["SequenceDescription"]["ImageLoader"]["zarr"]
+        
+
+    return dataset_path["#text"]
+
 def extract_tile_paths(xml_path: str) -> dict[int, str]:
     """
     Parses BDV xml and outputs map of setup_id -> tile path.
