@@ -48,7 +48,7 @@ def generate_dispim_link(
     blend: str = "additive",
     deskew_angle: int = 45,
     output_json_path: str = ".",
-    spim_foldername="SPIM.ome.zarr"
+    spim_foldername="SPIM.ome.zarr",
 ) -> None:
     """
     Creates an neuroglancer link to visualize
@@ -95,7 +95,8 @@ def generate_dispim_link(
     )
 
     channels: list[int] = link_utils.get_unique_channels_for_dataset(
-        s3_path + spim_foldername)
+        s3_path + spim_foldername
+    )
 
     # Generate input config
     layers = []  # Represent Neuroglancer Tabs
@@ -150,10 +151,8 @@ def generate_dispim_link(
             i_matrix_3x3 = intertile_tf[:, 0:3]
             i_translation = intertile_tf[:, 3]
 
-            net_matrix_3x3 = (
-                i_matrix_3x3
-            )  # NOTE: Right-multiply
-            net_translation = (i_translation)
+            net_matrix_3x3 = i_matrix_3x3  # NOTE: Right-multiply
+            net_translation = i_translation
             net_tf = np.hstack((net_matrix_3x3, net_translation.reshape(3, 1)))
 
             # net_tf = apply_deskewing(net_tf, deskew_angle)
@@ -177,7 +176,7 @@ def generate_dispim_link(
         mount_service="s3",
         bucket_path=f"{bucket_name}",
         output_json=output_json_path,
-        base_url="https://aind-neuroglancer-sauujisjxq-uw.a.run.app/"
+        base_url="https://aind-neuroglancer-sauujisjxq-uw.a.run.app/",
     )
     neuroglancer_link.save_state_as_json()
     print(neuroglancer_link.get_url_link())
@@ -185,7 +184,8 @@ def generate_dispim_link(
 
 
 def ingest_xml_and_write_ng_link(
-        xml_path: str, s3_bucket: str = "aind-open-data"):
+    xml_path: str, s3_bucket: str = "aind-open-data"
+):
     """A wrapper function that autogenerates the s3_path
      for dispim_link.generate_dispim_link
 
@@ -228,7 +228,8 @@ def ingest_xml_and_write_ng_link(
         max_dr=400,
         opacity=1.0,
         blend="additive",
-        output_json_path=output_folder)
+        output_json_path=output_folder,
+    )
 
     # copy output json to s3 bucket dataset
 

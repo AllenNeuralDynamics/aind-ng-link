@@ -26,8 +26,9 @@ def extract_dataset_path(xml_path: str) -> dict[int, str]:
     with open(xml_path, "r") as file:
         data: OrderedDict = xmltodict.parse(file.read())
 
-    dataset_path = \
-        data["SpimData"]["SequenceDescription"]["ImageLoader"]["zarr"]
+    dataset_path = data["SpimData"]["SequenceDescription"]["ImageLoader"][
+        "zarr"
+    ]
 
     return dataset_path["#text"]
 

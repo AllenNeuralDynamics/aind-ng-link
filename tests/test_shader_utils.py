@@ -3,8 +3,10 @@ Tests of utility functions for generating neuroglancer shader code
 """
 import unittest
 
-from ng_link.utils.shader_utils import (create_monochrome_shader,
-                                        create_rgb_shader)
+from ng_link.utils.shader_utils import (
+    create_monochrome_shader,
+    create_rgb_shader,
+)
 
 
 class ShaderUtilsTest(unittest.TestCase):

@@ -45,7 +45,7 @@ def calculate_net_transforms(
         net_matrix_3x3 = np.eye(3)
 
         # Tfs is a list of dicts containing transform under 'affine' key
-        for (tf) in (tfs):
+        for tf in tfs:
             nums = [float(val) for val in tf["affine"].split(" ")]
             matrix_3x3 = np.array([nums[0::4], nums[1::4], nums[2::4]])
             translation = np.array(nums[3::4])
@@ -90,6 +90,19 @@ def convert_matrix_3x4_to_5x6(matrix_3x4: np.ndarray) -> np.ndarray:
 
 
 def list_all_tiles_in_path(SPIM_folder: str) -> list:
+    """
+    Lists all tiles in a given SPIM folder.
+
+    Parameters
+    ------------------------
+    SPIM_folder: str
+        Path to SPIM folder.
+
+    Returns
+    ------------------------
+    list:
+        List of all tiles in SPIM folder.
+    """
     SPIM_folder = pathlib.Path(SPIM_folder)
     # assert SPIM_folder.exists()
 
@@ -97,21 +110,36 @@ def list_all_tiles_in_path(SPIM_folder: str) -> list:
 
 
 def list_all_tiles_in_bucket_path(
-        bucket_SPIM_folder: str, bucket_name="aind-open-data") -> list:
+    bucket_SPIM_folder: str, bucket_name="aind-open-data"
+) -> list:
+    """
+    Lists all tiles in a given bucket path
+
+    Parameters
+    ------------------------
+    bucket_SPIM_folder: str
+        Path to SPIM folder in bucket.
+    bucket_name: str
+        Name of bucket.
+
+    Returns
+    ------------------------
+    list:
+        List of all tiles in SPIM folder.
+    """
     # s3 = boto3.resource('s3')
     bucket_name, prefix = bucket_SPIM_folder.replace("s3://", "").split("/", 1)
     # my_bucket = s3.Bucket(bucket_name)
 
-    client = boto3.client('s3')
+    client = boto3.client("s3")
     result = client.list_objects(
-        Bucket=bucket_name,
-        Prefix=prefix + "/",
-        Delimiter='/')
+        Bucket=bucket_name, Prefix=prefix + "/", Delimiter="/"
+    )
     # print(result)
     tiles = []
-    for o in result.get('CommonPrefixes'):
+    for o in result.get("CommonPrefixes"):
         # print 'sub folder : ', o.get('Prefix')
-        tiles.append(o.get('Prefix'))
+        tiles.append(o.get("Prefix"))
     return tiles
 
 
@@ -157,7 +185,8 @@ def get_unique_channels_for_dataset(dataset_path: str) -> list:
         tiles_in_path = list_all_tiles_in_path(dataset_path)
     else:
         tiles_in_path = list_all_tiles_in_bucket_path(
-            dataset_path, "aind-open-data")
+            dataset_path, "aind-open-data"
+        )
     unique_list_of_channels = []
     for tile in tiles_in_path:
         channel = extract_channel_from_tile_path(tile)
