@@ -43,26 +43,14 @@ def calculate_net_transforms(
     for view, tfs in view_transforms.items():
         net_translation = np.zeros(3)
         net_matrix_3x3 = np.eye(3)
-        curr_inverse = np.eye(3)
 
-        for (tf) in (
-                tfs):  # Tfs is a list of dicts containing transform under 'affine' key
+        # Tfs is a list of dicts containing transform under 'affine' key
+        for (tf) in (tfs):
             nums = [float(val) for val in tf["affine"].split(" ")]
             matrix_3x3 = np.array([nums[0::4], nums[1::4], nums[2::4]])
             translation = np.array(nums[3::4])
-
-            # print(translation)
-            # nums = np.array(nums).reshape(3,4)
-            # matrix_3x3 = np.array([nums[:,0], nums[:,1], nums[:,2]]).T
-            # translation = np.array(nums[:,3])
-
-            # net_translation = net_translation + (curr_inverse @ translation)
             net_translation = net_translation + (translation)
-
             net_matrix_3x3 = net_matrix_3x3 @ matrix_3x3
-            # curr_inverse = np.linalg.inv(net_matrix_3x3)  # Update
-            # curr_inverse
-
         net_transforms[view] = np.hstack(
             (net_matrix_3x3, net_translation.reshape(3, 1))
         )

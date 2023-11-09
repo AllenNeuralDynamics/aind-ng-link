@@ -1,11 +1,14 @@
 import subprocess
 from pathlib import Path
 
-"""Requires AWS CLI to be installed and configured with credentials."""
+# Requires AWS CLI to be installed and configured with
+# credentials.
 
 
 def copy_to_s3(file_loc: str, bucket: str = None):
-    """ Copy fileout to s3 bucket, generally from a /scratch location to an S3 URI
+
+    """Copy fileout to s3 bucket, generally from a
+    /scratch location to an S3 URI
 
     Parameters:
     ------------
@@ -14,19 +17,16 @@ def copy_to_s3(file_loc: str, bucket: str = None):
 
     bucket: str
     The S3 Bucket URI that the masks will be copied to.
-
-
-
     """
+
     print("Copying to s3 bucket")
     file_loc = Path(file_loc)
     assert file_loc.exists(), f"Fileout {file_loc} does not exist."
     file_loc = str(file_loc)
-    print(f"file loc: ", file_loc)
-
     if bucket is None:
         print(
-            f'No bucket specified, segmentation masks at {file_loc} not transfered')
+            f'No bucket specified, segmentation masks at \
+                {file_loc} not transfered')
         return
     else:
         bucket = str(bucket)
@@ -35,7 +35,7 @@ def copy_to_s3(file_loc: str, bucket: str = None):
         try:
             subprocess.run(cmd, shell=True)
             print('*' * 70)
-            print(f'Finished Copy segmentation masks to S3!')
+            print('Finished Copy segmentation masks to S3!')
             print('*' * 70)
         except Exception as e:
             print("Error copying to s3 bucket: ", e)

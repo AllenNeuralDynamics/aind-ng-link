@@ -186,14 +186,17 @@ def generate_dispim_link(
 
 def ingest_xml_and_write_ng_link(
         xml_path: str, s3_bucket: str = "aind-open-data"):
-    """A wrapper function that autogenerates the s3_path for dispim_link.generate_dispim_link
+    """A wrapper function that autogenerates the s3_path
+     for dispim_link.generate_dispim_link
 
-    Automatically saves process_output.json, which can be manually uploaded to S3 bucket/dataset.
+    Automatically saves process_output.json, which can be
+     manually uploaded to S3 bucket/dataset.
 
     Parameters:
     ----------
     xml_path: str
-        Relative path to xml file (bigstitcher format) that contains tile position information
+        Relative path to xml file (bigstitcher format) that
+        contains tile position information
 
     s3_bucket:str
         name of s3 bucket where the dataset lives
