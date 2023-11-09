@@ -9,7 +9,7 @@ if __name__ == "__main__":
     
     args = parser.parse_args()
 
-    print(args)
+    # print(args)
     xml_file_in = args.xml_in
 
     s3_bucket = args.s3_bucket

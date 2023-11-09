@@ -231,8 +231,8 @@ def ingest_xml_and_write_ng_link(xml_path: str, s3_bucket:str = "aind-open-data"
     dataset_path = xml_parsing.extract_dataset_path(xml_path)
     dataset_name = dataset_path.split("/")[2]
 
-    print(f"dataset_path {dataset_path}")
-    print(f"dataset_name {dataset_name}")
+    # print(f"dataset_path {dataset_path}")
+    # print(f"dataset_name {dataset_name}")
 
     
     s3_path = f"s3://{s3_bucket}/{dataset_name}/"
