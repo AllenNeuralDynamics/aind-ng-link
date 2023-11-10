@@ -113,3 +113,9 @@ urllib3==1.26.15
     # via requests
 zipp==3.15.0
     # via importlib-metadata
+xmltodict==0.13.0
+    # via neuroglancer
+boto3==1.28.76
+    # via neuroglancer
+awscli==1.29.82
+    # via conda (conda-forge)

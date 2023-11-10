@@ -3,8 +3,9 @@ Utilities for nueroglancer links.
 """
 import re
 from collections import defaultdict
-
+import pathlib
 import numpy as np
+import boto3
 
 
 def calculate_net_transforms(
@@ -42,21 +43,14 @@ def calculate_net_transforms(
     for view, tfs in view_transforms.items():
         net_translation = np.zeros(3)
         net_matrix_3x3 = np.eye(3)
-        curr_inverse = np.eye(3)
 
-        for (
-            tf
-        ) in (
-            tfs
-        ):  # Tfs is a list of dicts containing transform under 'affine' key
+        # Tfs is a list of dicts containing transform under 'affine' key
+        for tf in tfs:
             nums = [float(val) for val in tf["affine"].split(" ")]
             matrix_3x3 = np.array([nums[0::4], nums[1::4], nums[2::4]])
             translation = np.array(nums[3::4])
-
-            net_translation = net_translation + (curr_inverse @ translation)
-            net_matrix_3x3 = matrix_3x3 @ net_matrix_3x3
-            curr_inverse = np.linalg.inv(net_matrix_3x3)  # Update curr_inverse
-
+            net_translation = net_translation + (translation)
+            net_matrix_3x3 = net_matrix_3x3 @ matrix_3x3
         net_transforms[view] = np.hstack(
             (net_matrix_3x3, net_translation.reshape(3, 1))
         )
@@ -81,7 +75,7 @@ def convert_matrix_3x4_to_5x6(matrix_3x4: np.ndarray) -> np.ndarray:
     """
 
     # Initalize
-    matrix_5x6 = np.zeros((5, 6), np.float16)
+    matrix_5x6 = np.zeros((5, 6), np.float32)
     np.fill_diagonal(matrix_5x6, 1)
 
     # Swap Rows 0 and 2; Swap Colums 0 and 2
@@ -93,6 +87,60 @@ def convert_matrix_3x4_to_5x6(matrix_3x4: np.ndarray) -> np.ndarray:
     matrix_5x6[2:6, 2:7] = patch
 
     return matrix_5x6
+
+
+def list_all_tiles_in_path(SPIM_folder: str) -> list:
+    """
+    Lists all tiles in a given SPIM folder.
+
+    Parameters
+    ------------------------
+    SPIM_folder: str
+        Path to SPIM folder.
+
+    Returns
+    ------------------------
+    list:
+        List of all tiles in SPIM folder.
+    """
+    SPIM_folder = pathlib.Path(SPIM_folder)
+    # assert SPIM_folder.exists()
+
+    return list(SPIM_folder.glob("*.zarr"))
+
+
+def list_all_tiles_in_bucket_path(
+    bucket_SPIM_folder: str, bucket_name="aind-open-data"
+) -> list:
+    """
+    Lists all tiles in a given bucket path
+
+    Parameters
+    ------------------------
+    bucket_SPIM_folder: str
+        Path to SPIM folder in bucket.
+    bucket_name: str
+        Name of bucket.
+
+    Returns
+    ------------------------
+    list:
+        List of all tiles in SPIM folder.
+    """
+    # s3 = boto3.resource('s3')
+    bucket_name, prefix = bucket_SPIM_folder.replace("s3://", "").split("/", 1)
+    # my_bucket = s3.Bucket(bucket_name)
+
+    client = boto3.client("s3")
+    result = client.list_objects(
+        Bucket=bucket_name, Prefix=prefix + "/", Delimiter="/"
+    )
+    # print(result)
+    tiles = []
+    for o in result.get("CommonPrefixes"):
+        # print 'sub folder : ', o.get('Prefix')
+        tiles.append(o.get("Prefix"))
+    return tiles
 
 
 def extract_channel_from_tile_path(t_path: str) -> int:
@@ -112,10 +160,41 @@ def extract_channel_from_tile_path(t_path: str) -> int:
 
     """
 
-    pattern = r"tile_(.*?)_((ch|CH)_\d*)(.*?)$"
-    result = re.match(pattern, t_path)
-    channel = int(result.group(2).split("_")[1])
+    pattern = r"(ch|CH)_(\d+)"
+    match = re.search(pattern, t_path)
+    channel = int(match.group(2))
     return channel
+
+
+def get_unique_channels_for_dataset(dataset_path: str) -> list:
+    """
+    Extracts a list of channels in a given dataset
+
+    Parameters:
+    -----------
+    dataset_path: str
+        Path to a dataset's zarr folder
+
+    Returns:
+    --------
+    unique_list_of_channels: list(int)
+        A list of int, containing the unique list of channel wavelengths
+
+    """
+    if pathlib.Path(dataset_path).exists():
+        tiles_in_path = list_all_tiles_in_path(dataset_path)
+    else:
+        tiles_in_path = list_all_tiles_in_bucket_path(
+            dataset_path, "aind-open-data"
+        )
+    unique_list_of_channels = []
+    for tile in tiles_in_path:
+        channel = extract_channel_from_tile_path(tile)
+
+        if channel not in unique_list_of_channels:
+            unique_list_of_channels.append(channel)
+
+    return unique_list_of_channels
 
 
 def wavelength_to_hex(wavelength: int) -> int:
