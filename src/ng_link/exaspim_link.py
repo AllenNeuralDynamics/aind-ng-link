@@ -33,6 +33,7 @@ def generate_exaspim_link(
     opacity: float = 1.0,
     blend: str = "default",
     output_json_path: str = ".",
+    dataset_name: Optional[str] = None,
 ) -> None:
     """Creates an neuroglancer link to visualize
     registration transforms on exaspim dataset pre-fusion.
