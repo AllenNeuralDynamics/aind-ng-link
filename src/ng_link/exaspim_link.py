@@ -45,10 +45,12 @@ def generate_exaspim_link(
     s3_path: str
         Path of s3 bucket where exaspim dataset is located.
     output_json_path: str
-        Local directory to write process_output.json file that nueroglancer reads.
+        Local directory to write process_output.json file that
+        neuroglancer reads.
     dataset_name: Optional[str]
-        Name of dataset. If None, will be directory name of output_json_path.
-    
+        Name of dataset. If None, will be directory name of
+        output_json_path.
+
 
     Returns
     ------------------------
