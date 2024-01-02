@@ -1,6 +1,8 @@
 """
 Library for generating exaspim link.
 """
+from typing import Optional
+
 import numpy as np
 
 from ng_link import NgState, link_utils, xml_parsing
@@ -128,7 +130,7 @@ def generate_exaspim_link(
         mount_service="s3",
         bucket_path="aind-open-data",
         output_dir=output_json_path,
-        dataset_name=dataset_name
+        dataset_name=dataset_name,
     )
     neuroglancer_link.save_state_as_json()
     print(neuroglancer_link.get_url_link())
