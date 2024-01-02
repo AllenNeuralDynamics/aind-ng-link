@@ -121,7 +121,8 @@ def generate_exaspim_link(
         input_config=input_config,
         mount_service="s3",
         bucket_path="aind-open-data",
-        output_json=output_json_path,
+        output_dir=output_json_path,
+        dataset_name=dataset_name
     )
     neuroglancer_link.save_state_as_json()
     print(neuroglancer_link.get_url_link())

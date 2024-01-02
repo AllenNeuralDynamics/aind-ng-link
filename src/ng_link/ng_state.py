@@ -26,10 +26,11 @@ class NgState:
         input_config: dict,
         mount_service: str,
         bucket_path: str,
-        output_json: PathLike,
+        output_dir: PathLike,
         verbose: Optional[bool] = False,
         base_url: Optional[str] = "https://neuroglancer-demo.appspot.com/",
         json_name: Optional[str] = "process_output.json",
+        dataset_name: Optional[str] = None,
     ) -> None:
         """
         Class constructor
@@ -42,24 +43,30 @@ class NgState:
             Could be 'gs' for a bucket in Google Cloud or 's3' in Amazon.
         bucket_path: str
             Path in cloud service where the dataset will be saved
-        output_json: PathLike
-            Path where the json will be written.
+        output_dir: PathLike
+            Directory where the json will be written.
         verbose: Optional[bool]
             If true, additional information will be shown. Default False.
         base_url: Optional[str]
             Neuroglancer service url
         json_name: Optional[str]
             Name of json file with neuroglancer configuration
+        dataset_name: Optional[str]
+            Name of the dataset. If None, the name of the output_dir directory will be used.
 
         """
 
         self.input_config = input_config
-        self.output_json = Path(self.__fix_output_json_path(output_json))
+        self.output_json = Path(self.__fix_output_json_path(output_dir))
         self.verbose = verbose
         self.mount_service = mount_service
         self.bucket_path = bucket_path
         self.base_url = base_url
         self.json_name = json_name
+        # Component after S3 bucket and before filename in the "ng_link" field of the output JSON
+        self.dataset_name = dataset_name
+        if self.dataset_name is None:
+            self.dataset_name = Path(self.output_json).stem
 
         # State and layers attributes
         self.__state = {}
@@ -407,10 +414,7 @@ class NgState:
             Neuroglancer url to visualize data.
         """
 
-        dataset_name = Path(self.output_json.stem)
-
-        json_path = str(dataset_name.joinpath(self.json_name))
-        json_path = f"{self.mount_service}://{self.bucket_path}/{json_path}"
+        json_path = f"{self.mount_service}://{self.bucket_path}/{self.dataset_name}/{self.json_name}"
 
         link = f"{self.base_url}#!{json_path}"
 
@@ -503,7 +507,7 @@ def smartspim_example():
         input_config=example_data,
         mount_service="s3",
         bucket_path="aind-msma-data",
-        output_json="/Users/camilo.laiton/repositories/aind-ng-link/src",
+        output_dir="/Users/camilo.laiton/repositories/aind-ng-link/src",
     )
 
     data = neuroglancer_link.state
@@ -643,7 +647,7 @@ def exaspim_example():
         input_config=example_data,
         mount_service="s3",
         bucket_path="aind-msma-data",
-        output_json="/Users/camilo.laiton/repositories/aind-ng-link/src",
+        output_dir="/Users/camilo.laiton/repositories/aind-ng-link/src",
     )
 
     data = neuroglancer_link.state
@@ -692,7 +696,7 @@ def example_3(cells):
         input_config=example_data,
         mount_service="s3",
         bucket_path="aind-msma-data",
-        output_json="/Users/camilo.laiton/repositories/aind-ng-link/src",
+        output_dir="/Users/camilo.laiton/repositories/aind-ng-link/src",
     )
 
     data = neuroglancer_link.state
@@ -880,7 +884,7 @@ def dispim_example():
         input_config=example_data,
         mount_service="s3",
         bucket_path="aind-msma-data",
-        output_json="/Users/camilo.laiton/repositories/aind-ng-link/src",
+        output_dir="/Users/camilo.laiton/repositories/aind-ng-link/src",
     )
 
     data = neuroglancer_link.state
