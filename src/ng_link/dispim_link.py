@@ -175,7 +175,7 @@ def generate_dispim_link(
         input_config=input_config,
         mount_service="s3",
         bucket_path=f"{bucket_name}",
-        output_json=output_json_path,
+        output_dir=output_json_path,
         base_url="https://aind-neuroglancer-sauujisjxq-uw.a.run.app/",
     )
     neuroglancer_link.save_state_as_json()

@@ -1,6 +1,8 @@
 """
 Library for generating exaspim link.
 """
+from typing import Optional
+
 import numpy as np
 
 from ng_link import NgState, link_utils, xml_parsing
@@ -33,6 +35,7 @@ def generate_exaspim_link(
     opacity: float = 1.0,
     blend: str = "default",
     output_json_path: str = ".",
+    dataset_name: Optional[str] = None,
 ) -> None:
     """Creates an neuroglancer link to visualize
     registration transforms on exaspim dataset pre-fusion.
@@ -44,7 +47,12 @@ def generate_exaspim_link(
     s3_path: str
         Path of s3 bucket where exaspim dataset is located.
     output_json_path: str
-        Local path to write process_output.json file that nueroglancer reads.
+        Local directory to write process_output.json file that
+        neuroglancer reads.
+    dataset_name: Optional[str]
+        Name of dataset. If None, will be directory name of
+        output_json_path.
+
 
     Returns
     ------------------------
@@ -121,7 +129,8 @@ def generate_exaspim_link(
         input_config=input_config,
         mount_service="s3",
         bucket_path="aind-open-data",
-        output_json=output_json_path,
+        output_dir=output_json_path,
+        dataset_name=dataset_name,
     )
     neuroglancer_link.save_state_as_json()
     print(neuroglancer_link.get_url_link())

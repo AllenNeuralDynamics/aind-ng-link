@@ -187,7 +187,7 @@ def generate_25_um_ccf_cells(params: dict, micron_res: int = 25):
         input_config=ccf_cell_count,
         mount_service="s3",
         bucket_path="aind-msma-data",
-        output_json="/Users/camilo.laiton/repositories/new_ng_link/aind-ng-link",
+        output_dir="/Users/camilo.laiton/repositories/new_ng_link/aind-ng-link",
     )
 
     return neuroglancer_link
