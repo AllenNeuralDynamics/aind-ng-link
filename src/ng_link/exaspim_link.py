@@ -26,6 +26,14 @@ def generate_exaspim_link(
         Path of xml outputted by BigStitcher.
     s3_path: str
         Path of s3 bucket where exaspim dataset is located.
+    vmin: float
+        Minimum value for shader.
+    vmax: float
+        Maximum value for shader.
+    opacity: float
+        Opacity of shader.
+    blend: str
+        Blend mode of shader.
     output_json_path: str
         Local directory to write process_output.json file that
         neuroglancer reads.

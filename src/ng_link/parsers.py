@@ -8,6 +8,8 @@ from ng_link import link_utils
 
 
 class OmeZarrParser:
+    """Class for parsing OME-Zarr datasets."""
+
     @staticmethod
     def parse_transform(z, res) -> Dict[str, list]:
         """
@@ -161,6 +163,8 @@ class OmeZarrParser:
 
 
 class XmlParser:
+    """Class for parsing BigStitcher XML datasets."""
+
     @staticmethod
     def extract_dataset_path(xml_path: str) -> str:
         """
