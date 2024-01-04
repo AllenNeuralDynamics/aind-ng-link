@@ -3,7 +3,8 @@ Library for generating raw link for visualizing tiles in nominal position.
 """
 import numpy as np
 
-from ng_link import NgState, link_utils, xml_parsing
+from ng_link import NgState, link_utils
+from parsers import XmlParser
 
 
 def generate_raw_link(
@@ -31,10 +32,10 @@ def generate_raw_link(
     None
     """
     # Gather xml info
-    vox_sizes: tuple[float, float, float] = xml_parsing.extract_tile_vox_size(
+    vox_sizes: tuple[float, float, float] = XmlParser.extract_tile_vox_size(
         xml_path
     )
-    tile_paths: dict[int, str] = xml_parsing.extract_tile_paths(xml_path)
+    tile_paths: dict[int, str] = XmlParser.extract_tile_paths(xml_path)
 
     # Reference Pathstring:
     # "s3://aind-open-data/diSPIM_647459_2022-12-21_00-39-00/diSPIM.zarr"
@@ -48,7 +49,7 @@ def generate_raw_link(
     if dataset_type == "diSPIM":
         tile_transforms: dict[
             int, list[dict]
-        ] = xml_parsing.extract_tile_transforms(xml_path)
+        ] = XmlParser.extract_tile_transforms(xml_path)
 
     net_transforms: dict[
         int, np.ndarray

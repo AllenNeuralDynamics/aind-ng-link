@@ -5,9 +5,9 @@ import numpy as np
 
 from ng_state import NgState
 import link_utils
-import xml_parsing
 import pathlib
 from utils import transfer
+from parsers import XmlParser
 
 
 def apply_deskewing(matrix_3x4: np.ndarray, theta: float = 45) -> np.ndarray:
@@ -78,15 +78,15 @@ def generate_dispim_link(
     """
 
     # Gather base channel xml info
-    vox_sizes: tuple[float, float, float] = xml_parsing.extract_tile_vox_size(
+    vox_sizes: tuple[float, float, float] = XmlParser.extract_tile_vox_size(
         base_channel_xml_path
     )
-    tile_paths: dict[int, str] = xml_parsing.extract_tile_paths(
+    tile_paths: dict[int, str] = XmlParser.extract_tile_paths(
         base_channel_xml_path
     )
     tile_transforms: dict[
         int, list[dict]
-    ] = xml_parsing.extract_tile_transforms(base_channel_xml_path)
+    ] = XmlParser.extract_tile_transforms(base_channel_xml_path)
     intertile_transforms: dict[
         int, np.ndarray
     ] = link_utils.calculate_net_transforms(tile_transforms)
@@ -209,7 +209,7 @@ def ingest_xml_and_write_ng_link(
 
     """
     # read_xml and get dataset prefix for S3
-    dataset_path = xml_parsing.extract_dataset_path(xml_path)
+    dataset_path = XmlParser.extract_dataset_path(xml_path)
     dataset_name = dataset_path.split("/")[2]
 
     # print(f"dataset_path {dataset_path}")
