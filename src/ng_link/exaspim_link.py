@@ -3,41 +3,21 @@ Library for generating exaspim link.
 """
 from typing import Optional
 
-import numpy as np
-
-from ng_link import NgState, link_utils, xml_parsing
-
-
-def omit_initial_offsets(view_transforms: dict[int, list[dict]]) -> None:
-    """
-    For OME-Zarr datasets, inital offsets are
-    already encoded in the metadata and extracted my neuroglancer.
-    This function removes the duplicate transform.
-
-    Parameters
-    ------------------------
-    view_transforms: dict[int, list[dict]]
-        Dictionary of tile ids to list of transforms.
-
-    Returns
-    ------------------------
-    None
-    """
-
-    for view, tfs in view_transforms.items():
-        tfs.pop(0)
+from ng_link import NgState, link_utils
+from ng_link.parsers import OmeZarrParser, XmlParser
 
 
 def generate_exaspim_link(
-    xml_path: str,
+    xml_path: str | None,
     s3_path: str,
-    max_dr: int = 200,
+    vmin: float = 0,
+    vmax: float = 200,
     opacity: float = 1.0,
     blend: str = "default",
     output_json_path: str = ".",
     dataset_name: Optional[str] = None,
 ) -> None:
-    """Creates an neuroglancer link to visualize
+    """Creates a neuroglancer link to visualize
     registration transforms on exaspim dataset pre-fusion.
 
     Parameters
@@ -46,6 +26,14 @@ def generate_exaspim_link(
         Path of xml outputted by BigStitcher.
     s3_path: str
         Path of s3 bucket where exaspim dataset is located.
+    vmin: float
+        Minimum value for shader.
+    vmax: float
+        Maximum value for shader.
+    opacity: float
+        Opacity of shader.
+    blend: str
+        Blend mode of shader.
     output_json_path: str
         Local directory to write process_output.json file that
         neuroglancer reads.
@@ -53,24 +41,15 @@ def generate_exaspim_link(
         Name of dataset. If None, will be directory name of
         output_json_path.
 
-
     Returns
     ------------------------
     None
     """
 
-    # Gather xml info
-    vox_sizes: tuple[float, float, float] = xml_parsing.extract_tile_vox_size(
-        xml_path
-    )
-    tile_paths: dict[int, str] = xml_parsing.extract_tile_paths(xml_path)
-    tile_transforms: dict[
-        int, list[dict]
-    ] = xml_parsing.extract_tile_transforms(xml_path)
-    omit_initial_offsets(tile_transforms)
-    net_transforms: dict[
-        int, np.ndarray
-    ] = link_utils.calculate_net_transforms(tile_transforms)
+    if xml_path is None and s3_path.endswith(".zarr"):
+        vox_sizes, tile_paths, net_transforms = OmeZarrParser.extract_info(s3_path)
+    else:
+        vox_sizes, tile_paths, net_transforms = XmlParser.extract_info(xml_path)
 
     # Determine color
     channel: int = link_utils.extract_channel_from_tile_path(tile_paths[0])
@@ -99,7 +78,7 @@ def generate_exaspim_link(
             "source": sources,
             "channel": 0,  # Optional
             "shaderControls": {
-                "normalized": {"range": [0, max_dr]}
+                "normalized": {"range": [vmin, vmax]}
             },  # Optional  # Exaspim has low HDR
             "shader": {
                 "color": hex_str,

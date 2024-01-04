@@ -23,7 +23,10 @@ dependencies = [
     'pint >= 0.18',
     'numpy >= 1.21.6',
     'neuroglancer >= 2.36', 
-    'xmltodict >= 0.13.0'
+    'xmltodict >= 0.13.0',
+    'zarr',
+    's3fs',
+    'boto3'
 ]
 
 [project.optional-dependencies]
@@ -34,7 +37,7 @@ dev = [
     'interrogate',
     'isort',
     'Sphinx',
-    'pygit2'
+    'pygit2',
 ]
 
 [tool.setuptools.packages.find]
