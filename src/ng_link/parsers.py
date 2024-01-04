@@ -154,7 +154,8 @@ class OmeZarrParser:
         z = zarr.open(zarr_path, mode="r")
         tile_offsets = {}
         for i in range(len(z.keys())):
-            # Use the identity matrix since the offset is already encoded in the .zattrs
+            # Use the identity matrix since the offset is already encoded in
+            # the .zattrs
             tile_offsets[i] = np.hstack((np.eye(3), np.zeros(3).reshape(3, 1)))
         return tile_offsets
 
