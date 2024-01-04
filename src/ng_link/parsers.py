@@ -11,7 +11,8 @@ class OmeZarrParser:
     @staticmethod
     def parse_transform(z, res) -> Dict[str, list]:
         """
-        Parses scale and translation transformations for a resolution level in an OME-Zarr dataset.
+        Parses scale and translation transformations for a resolution level
+        in an OME-Zarr dataset.
 
         Parameters
         ----------
@@ -20,10 +21,8 @@ class OmeZarrParser:
         res : str
             Dataset resolution to parse.
 
-        Returns
-        -------
-        Dict[str, list]
-            A dictionary containing scale and translation data for the first dataset.
+        Returns ------- Dict[str, list] A dictionary containing scale and
+        translation data for the first dataset.
         """
 
         # Read the metadata from .zattrs
@@ -67,10 +66,11 @@ class OmeZarrParser:
 
     @staticmethod
     def extract_info(
-        s3_path: str,
+            s3_path: str,
     ) -> Tuple[tuple, Dict[int, str], Dict[int, np.ndarray]]:
         """
-        Extracts voxel sizes, tile paths, and tile offsets from a given OME-Zarr path.
+        Extracts voxel sizes, tile paths, and tile offsets from a given
+        OME-Zarr path.
 
         Parameters
         ----------
@@ -82,13 +82,13 @@ class OmeZarrParser:
         Tuple[tuple, Dict[int, str], Dict[int, np.ndarray]]
             A tuple containing voxel sizes, tile paths, and tile offsets.
         """
-        vox_sizes: tuple[
-            float, float, float
-        ] = OmeZarrParser.extract_tile_vox_size(s3_path)
+        vox_sizes: tuple[float, float, float] = (
+            OmeZarrParser.extract_tile_vox_size(s3_path)
+        )
         tile_paths: dict[int, str] = OmeZarrParser.extract_tile_paths(s3_path)
-        net_transforms: dict[
-            int, np.ndarray
-        ] = OmeZarrParser._get_identity_mats(s3_path)
+        net_transforms: dict[int, np.ndarray] = (
+            OmeZarrParser._get_identity_mats(s3_path)
+        )
         return vox_sizes, tile_paths, net_transforms
 
     @staticmethod
@@ -137,8 +137,9 @@ class OmeZarrParser:
     def _get_identity_mats(zarr_path: str) -> Dict[int, np.ndarray]:
         """
         Create a homogeneous identity matrix for each tile in the dataset.
-        We need to do this because neuroglancer expects the offset to be encoded in the .zattrs.
-        The transformation matrix in the viewer state should do nothing.
+        We need to do this because neuroglancer expects the offset to be
+        encoded in the .zattrs. The transformation matrix in the viewer
+        state should do nothing.
 
         Parameters
         ----------
@@ -206,9 +207,10 @@ class XmlParser:
             data: OrderedDict = xmltodict.parse(file.read())
 
         for id, zgroup in enumerate(
-            data["SpimData"]["SequenceDescription"]["ImageLoader"]["zgroups"][
-                "zgroup"
-            ]
+                data["SpimData"]["SequenceDescription"]["ImageLoader"][
+                    "zgroups"][
+                    "zgroup"
+                ]
         ):
             view_paths[int(id)] = zgroup["path"]
 
@@ -242,7 +244,8 @@ class XmlParser:
     @staticmethod
     def extract_tile_transforms(xml_path: str) -> Dict[int, List[dict]]:
         """
-        Parses BDV XML and extracts a map of setup IDs to lists of transformations.
+        Parses BDV XML and extracts a map of setup IDs to lists of
+        transformations.
 
         Parameters
         ----------
@@ -275,10 +278,11 @@ class XmlParser:
 
     @staticmethod
     def extract_info(
-        xml_path: str,
+            xml_path: str,
     ) -> Tuple[tuple, Dict[int, str], Dict[int, np.ndarray]]:
         """
-        Extracts voxel sizes, tile paths, and tile transforms from a given XML path.
+        Extracts voxel sizes, tile paths, and tile transforms from a given
+        XML path.
 
         Parameters
         ----------
@@ -290,17 +294,17 @@ class XmlParser:
         Tuple[tuple, Dict[int, str], Dict[int, np.ndarray]]
             A tuple containing voxel sizes, tile paths, and tile offsets.
         """
-        vox_sizes: tuple[
-            float, float, float
-        ] = XmlParser.extract_tile_vox_size(xml_path)
+        vox_sizes: tuple[float, float, float] = (
+            XmlParser.extract_tile_vox_size(xml_path)
+        )
         tile_paths: dict[int, str] = XmlParser.extract_tile_paths(xml_path)
-        tile_transforms: dict[
-            int, list[dict]
-        ] = XmlParser.extract_tile_transforms(xml_path)
+        tile_transforms: dict[int, list[dict]] = (
+            XmlParser.extract_tile_transforms(xml_path)
+        )
         XmlParser.omit_initial_offsets(tile_transforms)
-        net_transforms: dict[
-            int, np.ndarray
-        ] = link_utils.calculate_net_transforms(tile_transforms)
+        net_transforms: dict[int, np.ndarray] = (
+            link_utils.calculate_net_transforms(tile_transforms)
+        )
         return vox_sizes, tile_paths, net_transforms
 
     @staticmethod
