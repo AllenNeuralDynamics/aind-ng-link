@@ -1,3 +1,5 @@
+"""Module for parsing dataset info."""
+
 from typing import Dict, List, OrderedDict, Tuple
 
 import numpy as np
