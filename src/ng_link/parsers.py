@@ -1,8 +1,9 @@
-from typing import OrderedDict, Dict, Tuple, List
+from typing import Dict, List, OrderedDict, Tuple
 
 import numpy as np
 import xmltodict
 import zarr
+
 from ng_link import link_utils
 
 
@@ -33,22 +34,41 @@ class OmeZarrParser:
 
         # Extract transformations for the first dataset
         transformations = {}
-        multiscales = metadata.get('multiscales', [])
+        multiscales = metadata.get("multiscales", [])
 
         if multiscales:
-            datasets = multiscales[0].get('datasets', [])
+            datasets = multiscales[0].get("datasets", [])
             for ds in datasets:
-                if ds['path'] == res:
-                    coord_transforms = ds.get('coordinateTransformations', [])
-                    scale = next((t['scale'] for t in coord_transforms if t['type'] == 'scale'), None)
-                    translation = next((t['translation'] for t in coord_transforms if t['type'] == 'translation'), None)
-                    transformations = {'scale': scale, 'translation': translation}
+                if ds["path"] == res:
+                    coord_transforms = ds.get("coordinateTransformations", [])
+                    scale = next(
+                        (
+                            t["scale"]
+                            for t in coord_transforms
+                            if t["type"] == "scale"
+                        ),
+                        None,
+                    )
+                    translation = next(
+                        (
+                            t["translation"]
+                            for t in coord_transforms
+                            if t["type"] == "translation"
+                        ),
+                        None,
+                    )
+                    transformations = {
+                        "scale": scale,
+                        "translation": translation,
+                    }
                     break
 
         return transformations
 
     @staticmethod
-    def extract_info(s3_path: str) -> Tuple[tuple, Dict[int, str], Dict[int, np.ndarray]]:
+    def extract_info(
+        s3_path: str,
+    ) -> Tuple[tuple, Dict[int, str], Dict[int, np.ndarray]]:
         """
         Extracts voxel sizes, tile paths, and tile offsets from a given OME-Zarr path.
 
@@ -86,7 +106,7 @@ class OmeZarrParser:
         Dict[int, str]
             A dictionary mapping tile indices to their paths.
         """
-        z = zarr.open(zarr_path, mode='r')
+        z = zarr.open(zarr_path, mode="r")
         return {i: k for i, k in enumerate(sorted(z.keys()))}
 
     @staticmethod
@@ -104,10 +124,14 @@ class OmeZarrParser:
         Tuple[float, float, float]
             A tuple representing the voxel size in the x, y, and z dimensions.
         """
-        z = zarr.open(zarr_path, mode='r')
+        z = zarr.open(zarr_path, mode="r")
         first_tile = z[next(iter(z.keys()))]
 
-        return tuple(reversed(OmeZarrParser.parse_transform(first_tile, '0')['scale'][2:]))
+        return tuple(
+            reversed(
+                OmeZarrParser.parse_transform(first_tile, "0")["scale"][2:]
+            )
+        )
 
     @staticmethod
     def _get_identity_mats(zarr_path: str) -> Dict[int, np.ndarray]:
@@ -126,7 +150,7 @@ class OmeZarrParser:
         Dict[int, np.ndarray]
             A dictionary mapping tile indices to their offset matrices.
         """
-        z = zarr.open(zarr_path, mode='r')
+        z = zarr.open(zarr_path, mode="r")
         tile_offsets = {}
         for i in range(len(z.keys())):
             # Use the identity matrix since the offset is already encoded in the .zattrs
@@ -182,9 +206,9 @@ class XmlParser:
             data: OrderedDict = xmltodict.parse(file.read())
 
         for id, zgroup in enumerate(
-                data["SpimData"]["SequenceDescription"]["ImageLoader"]["zgroups"][
-                    "zgroup"
-                ]
+            data["SpimData"]["SequenceDescription"]["ImageLoader"]["zgroups"][
+                "zgroup"
+            ]
         ):
             view_paths[int(id)] = zgroup["path"]
 
@@ -235,7 +259,9 @@ class XmlParser:
         with open(xml_path, "r") as file:
             data: OrderedDict = xmltodict.parse(file.read())
 
-        for view_reg in data["SpimData"]["ViewRegistrations"]["ViewRegistration"]:
+        for view_reg in data["SpimData"]["ViewRegistrations"][
+            "ViewRegistration"
+        ]:
             tfm_stack = view_reg["ViewTransform"]
             if not isinstance(tfm_stack, list):
                 tfm_stack = [tfm_stack]
@@ -248,7 +274,9 @@ class XmlParser:
         return view_transforms
 
     @staticmethod
-    def extract_info(xml_path: str) -> Tuple[tuple, Dict[int, str], Dict[int, np.ndarray]]:
+    def extract_info(
+        xml_path: str,
+    ) -> Tuple[tuple, Dict[int, str], Dict[int, np.ndarray]]:
         """
         Extracts voxel sizes, tile paths, and tile transforms from a given XML path.
 
