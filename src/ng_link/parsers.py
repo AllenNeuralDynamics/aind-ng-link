@@ -25,7 +25,9 @@ class OmeZarrParser:
         res : str
             Dataset resolution to parse.
 
-        Returns ------- Dict[str, list] A dictionary containing scale and
+        Returns
+        -------
+        Dict[str, list] A dictionary containing scale and
         translation data for the first dataset.
         """
 
