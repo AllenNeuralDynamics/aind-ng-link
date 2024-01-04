@@ -10,7 +10,7 @@ class OmeZarrParser:
     @staticmethod
     def parse_transform(z, res) -> Dict[str, list]:
         """
-        Parses scale and translation transformations for the first dataset ("0") in an OME-Zarr dataset.
+        Parses scale and translation transformations for a resolution level in an OME-Zarr dataset.
 
         Parameters
         ----------
@@ -68,7 +68,7 @@ class OmeZarrParser:
         tile_paths: dict[int, str] = OmeZarrParser.extract_tile_paths(s3_path)
         net_transforms: dict[
             int, np.ndarray
-        ] = OmeZarrParser.extract_tile_offsets(s3_path)
+        ] = OmeZarrParser._get_identity_mats(s3_path)
         return vox_sizes, tile_paths, net_transforms
 
     @staticmethod
@@ -110,9 +110,11 @@ class OmeZarrParser:
         return tuple(reversed(OmeZarrParser.parse_transform(first_tile, '0')['scale'][2:]))
 
     @staticmethod
-    def extract_tile_offsets(zarr_path: str) -> Dict[int, np.ndarray]:
+    def _get_identity_mats(zarr_path: str) -> Dict[int, np.ndarray]:
         """
-        Extracts tile offsets for each tile in a given Zarr dataset.
+        Create a homogeneous identity matrix for each tile in the dataset.
+        We need to do this because neuroglancer expects the offset to be encoded in the .zattrs.
+        The transformation matrix in the viewer state should do nothing.
 
         Parameters
         ----------
@@ -126,7 +128,7 @@ class OmeZarrParser:
         """
         z = zarr.open(zarr_path, mode='r')
         tile_offsets = {}
-        for i, tile_key in enumerate(sorted(z.keys())):
+        for i in range(len(z.keys())):
             # Use the identity matrix since the offset is already encoded in the .zattrs
             tile_offsets[i] = np.hstack((np.eye(3), np.zeros(3).reshape(3, 1)))
         return tile_offsets
