@@ -1,6 +1,7 @@
 """
 Library for generating exaspim link.
 """
+from collections import defaultdict
 from typing import Optional
 
 from ng_link import NgState, link_utils
@@ -8,14 +9,14 @@ from ng_link.parsers import OmeZarrParser, XmlParser
 
 
 def generate_exaspim_link(
-    xml_path: str | None,
-    s3_path: str,
-    vmin: float = 0,
-    vmax: float = 200,
-    opacity: float = 1.0,
-    blend: str = "default",
-    output_json_path: str = ".",
-    dataset_name: Optional[str] = None,
+        xml_path: str | None,
+        s3_path: str,
+        vmin: float = 0,
+        vmax: float = 200,
+        opacity: float = 1.0,
+        blend: str = "default",
+        output_json_path: str = ".",
+        dataset_name: Optional[str] = None,
 ) -> None:
     """Creates a neuroglancer link to visualize
     registration transforms on exaspim dataset pre-fusion.
@@ -47,17 +48,52 @@ def generate_exaspim_link(
     """
 
     if xml_path is None and s3_path.endswith(".zarr"):
-        vox_sizes, tile_paths, net_transforms = OmeZarrParser.extract_info(s3_path)
+        vox_sizes, tile_paths, net_transforms = OmeZarrParser.extract_info(
+            s3_path)
     else:
-        vox_sizes, tile_paths, net_transforms = XmlParser.extract_info(xml_path)
+        vox_sizes, tile_paths, net_transforms = XmlParser.extract_info(
+            xml_path)
 
-    # Determine color
-    channel: int = link_utils.extract_channel_from_tile_path(tile_paths[0])
-    hex_val: int = link_utils.wavelength_to_hex(channel)
-    hex_str = f"#{str(hex(hex_val))[2:]}"
+    channel_sources = defaultdict(list)
+    for tile_id, _ in enumerate(net_transforms):
+        t_path = tile_paths[tile_id]
+
+        channel: int = link_utils.extract_channel_from_tile_path(t_path)
+
+        final_transform = link_utils.convert_matrix_3x4_to_5x6(
+            net_transforms[tile_id])
+
+        channel_sources[channel].append(
+            {"url": f"{s3_path}/{t_path}",
+             "transform_matrix": final_transform.tolist()}
+        )
+
+    layers = []  # Neuroglancer Tabs
+    for i, (channel, sources) in enumerate(channel_sources.items()):
+        hex_val: int = link_utils.wavelength_to_hex(channel)
+        hex_str = f"#{str(hex(hex_val))[2:]}"
+
+        layers.append(
+            {
+                "type": "image",  # Optional
+                "source": sources,
+                "channel": 0,  # Optional
+                "shaderControls": {
+                    "normalized": {"range": [vmin, vmax]}
+                },  # Optional  # Exaspim has low HDR
+                "shader": {
+                    "color": hex_str,
+                    "emitter": "RGB",
+                    "vec": "vec3",
+                },
+                "visible": True,  # Optional
+                "opacity": opacity,
+                "name": f"CH_{channel}",
+                "blend": blend,
+            }
+        )
 
     # Generate input config
-    layers = []  # Nueroglancer Tabs
     input_config = {
         "dimensions": {
             "x": {"voxel_size": vox_sizes[0], "unit": "microns"},
@@ -70,38 +106,6 @@ def generate_exaspim_link(
         "showScaleBar": False,
         "showAxisLines": False,
     }
-
-    sources = []  # Tiles within tabs
-    layers.append(
-        {
-            "type": "image",  # Optional
-            "source": sources,
-            "channel": 0,  # Optional
-            "shaderControls": {
-                "normalized": {"range": [vmin, vmax]}
-            },  # Optional  # Exaspim has low HDR
-            "shader": {
-                "color": hex_str,
-                "emitter": "RGB",
-                "vec": "vec3",
-            },
-            "visible": True,  # Optional
-            "opacity": opacity,
-            "name": f"CH_{channel}",
-            "blend": blend,
-        }
-    )
-
-    for tile_id, _ in enumerate(net_transforms):
-        net_tf = net_transforms[tile_id]
-        t_path = tile_paths[tile_id]
-
-        url = f"{s3_path}/{t_path}"
-        final_transform = link_utils.convert_matrix_3x4_to_5x6(net_tf)
-
-        sources.append(
-            {"url": url, "transform_matrix": final_transform.tolist()}
-        )
 
     # Generate the link
     neuroglancer_link = NgState(
