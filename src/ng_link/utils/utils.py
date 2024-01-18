@@ -6,7 +6,10 @@ import os
 import shutil
 import subprocess
 from pathlib import Path
-from typing import Optional, Union
+from typing import Optional, Union, List
+
+import boto3
+import pandas as pd
 
 # IO types
 PathLike = Union[str, Path]
@@ -236,3 +239,64 @@ def save_string_to_txt(txt: str, filepath: PathLike, mode="w") -> None:
 
     with open(filepath, mode) as file:
         file.write(txt + "\n")
+
+
+def create_s3_client() -> boto3.client:
+    """
+    Create and return a boto3 S3 client.
+
+    Returns
+    -------
+    boto3.Client
+        A boto3 S3 client object.
+    """
+    return boto3.client('s3')
+
+
+def list_folders_s3(
+        s3_client: boto3.client,
+        bucket_name: str,
+        prefix: str
+) -> list:
+    """
+    List top-level folders in an S3 bucket with a specified prefix.
+
+    Parameters
+    ----------
+    s3_client : boto3.Client
+        The S3 client object.
+    bucket_name : str
+        The name of the S3 bucket.
+    prefix : str
+        The prefix to filter folders.
+
+    Returns
+    -------
+    list
+        A list of folder names.
+    """
+    response = s3_client.list_objects_v2(Bucket=bucket_name, Prefix=prefix,
+                                         Delimiter='/')
+    return [content.get('Prefix').rstrip('/') for content in
+            response.get('CommonPrefixes', [])]
+
+
+def save_to_csv(data: List[dict], file_path: str) -> str:
+    """
+    Save the given data to a CSV file.
+
+    Parameters
+    ----------
+    data : List[dict]
+        The data to be saved.
+    file_path : str
+        The file path for the CSV file.
+
+    Returns
+    -------
+    str
+        The path of the saved CSV file.
+    """
+    df = pd.DataFrame(data)
+    df.to_csv(file_path, index=False)
+    return file_path
