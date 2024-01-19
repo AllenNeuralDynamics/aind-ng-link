@@ -9,8 +9,8 @@ from ng_link.parsers import OmeZarrParser, XmlParser
 
 
 def generate_exaspim_link(
-        xml_path: str | None,
-        s3_path: str,
+        xml_path: Optional[str] = None,
+        s3_path: str = None,
         vmin: float = 0,
         vmax: float = 200,
         opacity: float = 1.0,
