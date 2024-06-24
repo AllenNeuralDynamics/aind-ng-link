@@ -5,9 +5,11 @@ import pathlib
 
 import link_utils
 import numpy as np
+from numpy.typing import ArrayLike
 from ng_state import NgState
 from parsers import XmlParser
 from utils import transfer
+from typing import List, Dict, Tuple
 
 
 def apply_deskewing(matrix_3x4: np.ndarray, theta: float = 45) -> np.ndarray:
@@ -78,23 +80,23 @@ def generate_dispim_link(
     """
 
     # Gather base channel xml info
-    vox_sizes: tuple[float, float, float] = XmlParser.extract_tile_vox_size(
+    vox_sizes: Tuple[float, float, float] = XmlParser.extract_tile_vox_size(
         base_channel_xml_path
     )
-    tile_paths: dict[int, str] = XmlParser.extract_tile_paths(
+    tile_paths: Dict[int, str] = XmlParser.extract_tile_paths(
         base_channel_xml_path
     )
-    tile_transforms: dict[int, list[dict]] = XmlParser.extract_tile_transforms(
+    tile_transforms: Dict[int, List[Dict]] = XmlParser.extract_tile_transforms(
         base_channel_xml_path
     )
-    intertile_transforms: dict[
-        int, np.ndarray
+    intertile_transforms: Dict[
+        int, ArrayLike
     ] = link_utils.calculate_net_transforms(tile_transforms)
     base_channel: int = link_utils.extract_channel_from_tile_path(
         tile_paths[0]
     )
 
-    channels: list[int] = link_utils.get_unique_channels_for_dataset(
+    channels: List[int] = link_utils.get_unique_channels_for_dataset(
         s3_path + spim_foldername
     )
 

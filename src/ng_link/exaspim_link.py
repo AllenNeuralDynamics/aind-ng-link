@@ -10,12 +10,12 @@ from ng_link.parsers import OmeZarrParser, XmlParser
 
 def generate_exaspim_link(
     xml_path: Optional[str] = None,
-    s3_path: str = None,
-    vmin: float = 0,
-    vmax: float = 200,
-    opacity: float = 1.0,
-    blend: str = "default",
-    output_json_path: str = ".",
+    s3_path: Optional[str] = None,
+    vmin: Optional[float] = 0,
+    vmax: Optional[float] = 200,
+    opacity: Optional[float] = 1.0,
+    blend: Optional[str] = "default",
+    output_json_path: Optional[str] = ".",
     dataset_name: Optional[str] = None,
 ) -> None:
     """Creates a neuroglancer link to visualize
