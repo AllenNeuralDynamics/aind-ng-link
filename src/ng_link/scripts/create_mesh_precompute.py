@@ -90,7 +90,7 @@ class ng_mesh_precompute:
         if flip_x:
             verts[:, 0] = 13200 - verts[:, 0]
 
-        verts *= 10**3
+        verts *= 10 ** 3
 
         vertex_index_format = [
             np.uint32(verts.shape[0]),  # Number of vertices (3 coordinates)

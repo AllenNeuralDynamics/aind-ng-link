@@ -9,14 +9,14 @@ from ng_link.parsers import OmeZarrParser, XmlParser
 
 
 def generate_exaspim_link(
-        xml_path: Optional[str] = None,
-        s3_path: str = None,
-        vmin: float = 0,
-        vmax: float = 200,
-        opacity: float = 1.0,
-        blend: str = "default",
-        output_json_path: str = ".",
-        dataset_name: Optional[str] = None,
+    xml_path: Optional[str] = None,
+    s3_path: str = None,
+    vmin: float = 0,
+    vmax: float = 200,
+    opacity: float = 1.0,
+    blend: str = "default",
+    output_json_path: str = ".",
+    dataset_name: Optional[str] = None,
 ) -> None:
     """Creates a neuroglancer link to visualize
     registration transforms on exaspim dataset pre-fusion.
@@ -49,10 +49,12 @@ def generate_exaspim_link(
 
     if xml_path is None and s3_path.endswith(".zarr"):
         vox_sizes, tile_paths, net_transforms = OmeZarrParser.extract_info(
-            s3_path)
+            s3_path
+        )
     else:
         vox_sizes, tile_paths, net_transforms = XmlParser.extract_info(
-            xml_path)
+            xml_path
+        )
 
     channel_sources = defaultdict(list)
     for tile_id, _ in enumerate(net_transforms):
@@ -61,11 +63,14 @@ def generate_exaspim_link(
         channel: int = link_utils.extract_channel_from_tile_path(t_path)
 
         final_transform = link_utils.convert_matrix_3x4_to_5x6(
-            net_transforms[tile_id])
+            net_transforms[tile_id]
+        )
 
         channel_sources[channel].append(
-            {"url": f"{s3_path}/{t_path}",
-             "transform_matrix": final_transform.tolist()}
+            {
+                "url": f"{s3_path}/{t_path}",
+                "transform_matrix": final_transform.tolist(),
+            }
         )
 
     layers = []  # Neuroglancer Tabs
@@ -81,11 +86,7 @@ def generate_exaspim_link(
                 "shaderControls": {
                     "normalized": {"range": [vmin, vmax]}
                 },  # Optional  # Exaspim has low HDR
-                "shader": {
-                    "color": hex_str,
-                    "emitter": "RGB",
-                    "vec": "vec3",
-                },
+                "shader": {"color": hex_str, "emitter": "RGB", "vec": "vec3",},
                 "visible": True,  # Optional
                 "opacity": opacity,
                 "name": f"CH_{channel}",

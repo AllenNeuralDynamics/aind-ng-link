@@ -6,7 +6,7 @@ import os
 import shutil
 import subprocess
 from pathlib import Path
-from typing import Optional, Union, List
+from typing import List, Optional, Union
 
 import boto3
 import pandas as pd
@@ -250,13 +250,11 @@ def create_s3_client() -> boto3.client:
     boto3.Client
         A boto3 S3 client object.
     """
-    return boto3.client('s3')
+    return boto3.client("s3")
 
 
 def list_folders_s3(
-        s3_client: boto3.client,
-        bucket_name: str,
-        prefix: str
+    s3_client: boto3.client, bucket_name: str, prefix: str
 ) -> list:
     """
     List top-level folders in an S3 bucket with a specified prefix.
@@ -275,10 +273,13 @@ def list_folders_s3(
     list
         A list of folder names.
     """
-    response = s3_client.list_objects_v2(Bucket=bucket_name, Prefix=prefix,
-                                         Delimiter='/')
-    return [content.get('Prefix').rstrip('/') for content in
-            response.get('CommonPrefixes', [])]
+    response = s3_client.list_objects_v2(
+        Bucket=bucket_name, Prefix=prefix, Delimiter="/"
+    )
+    return [
+        content.get("Prefix").rstrip("/")
+        for content in response.get("CommonPrefixes", [])
+    ]
 
 
 def save_to_csv(data: List[dict], file_path: str) -> str:

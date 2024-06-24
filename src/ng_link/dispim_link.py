@@ -1,13 +1,13 @@
 """
 Library for generating dispim link.
 """
-import numpy as np
-
-from ng_state import NgState
-import link_utils
 import pathlib
-from utils import transfer
+
+import link_utils
+import numpy as np
+from ng_state import NgState
 from parsers import XmlParser
+from utils import transfer
 
 
 def apply_deskewing(matrix_3x4: np.ndarray, theta: float = 45) -> np.ndarray:
@@ -84,9 +84,9 @@ def generate_dispim_link(
     tile_paths: dict[int, str] = XmlParser.extract_tile_paths(
         base_channel_xml_path
     )
-    tile_transforms: dict[
-        int, list[dict]
-    ] = XmlParser.extract_tile_transforms(base_channel_xml_path)
+    tile_transforms: dict[int, list[dict]] = XmlParser.extract_tile_transforms(
+        base_channel_xml_path
+    )
     intertile_transforms: dict[
         int, np.ndarray
     ] = link_utils.calculate_net_transforms(tile_transforms)
@@ -129,11 +129,7 @@ def generate_dispim_link(
                 "shaderControls": {
                     "normalized": {"range": [90, max_dr]}
                 },  # Optional
-                "shader": {
-                    "color": hex_str,
-                    "emitter": "RGB",
-                    "vec": "vec3",
-                },
+                "shader": {"color": hex_str, "emitter": "RGB", "vec": "vec3",},
                 "visible": True,  # Optional
                 "opacity": opacity,
                 "name": f"CH_{channel}",

@@ -2,8 +2,8 @@
 Class to represent a configuration state to visualize data in neuroglancer
 """
 import re
-from pathlib import Path
 from itertools import combinations
+from pathlib import Path
 from typing import List, Optional, Union
 
 import numpy as np
@@ -334,16 +334,16 @@ class NgState:
 
             elif key == "crossSectionOrientation":
                 self.cross_section_orientation = val
-            
+
             elif key == "crossSectionScale":
                 self.cross_section_scale = val
-            
+
             elif key == "projectionScale":
                 self.projection_scale = val
-            
+
             elif key == "layout":
                 self.layout = val
-            
+
             elif key == "position":
                 self.position = val
 
@@ -358,7 +358,7 @@ class NgState:
             String value of the title.
         """
         return self.__state["title"]
-    
+
     @title.setter
     def title(self, new_title: str) -> None:
         """
@@ -387,7 +387,7 @@ class NgState:
             Value of the cross_section_scale.
         """
         return self.__state["crossSectionScale"]
-    
+
     @cross_section_scale.setter
     def cross_section_scale(self, new_cross_section_scale: float) -> None:
         """
@@ -404,7 +404,7 @@ class NgState:
             If the parameter is not an float.
         """
         self.__state["crossSectionScale"] = float(new_cross_section_scale)
-    
+
     @property
     def projection_scale(self) -> float:
         """
@@ -416,7 +416,7 @@ class NgState:
             Value of the projection_scale.
         """
         return self.__state["projectionScale"]
-    
+
     @projection_scale.setter
     def projection_scale(self, new_scale: float) -> None:
         """
@@ -433,7 +433,7 @@ class NgState:
             If the parameter is not an float.
         """
         self.__state["projectionScale"] = float(new_scale)
-    
+
     @property
     def cross_section_orientation(self) -> List[float]:
         """
@@ -445,7 +445,7 @@ class NgState:
             List of values to set the cross section orientation
         """
         return self.__state["crossSectionOrientation"]
-    
+
     @cross_section_orientation.setter
     def cross_section_orientation(self, new_orientation: List[float]) -> None:
         """
@@ -463,7 +463,7 @@ class NgState:
         """
         new_orientation = [float(i) for i in new_orientation]
         self.__state["crossSectionOrientation"] = new_orientation
-    
+
     @property
     def layout(self) -> str:
         """
@@ -477,7 +477,7 @@ class NgState:
             Viewer panel layout.
         """
         return self.__state["layout"]
-    
+
     @layout.setter
     def layout(self, new_layout: str) -> None:
         """
@@ -498,11 +498,7 @@ class NgState:
             If the string is not one of the defined choices
         """
         available_layouts = [
-            k[0] + k[1]
-            for k in combinations(
-                ['x', 'y', 'z'],
-                2
-            )
+            k[0] + k[1] for k in combinations(["x", "y", "z"], 2)
         ]
         available_layouts += [i[::-1] for i in available_layouts]
         available_layouts += ["3d", "4panel"]
@@ -511,7 +507,7 @@ class NgState:
             raise ValueError(f"Viewer layout {new_layout} is not valid")
         else:
             self.__state["layout"] = new_layout
-    
+
     @property
     def position(self) -> List[float]:
         """
@@ -668,11 +664,7 @@ def get_points_from_xml(path: PathLike, encoding: str = "utf-8") -> List[dict]:
     new_cell_data = []
     for cell in cell_data:
         new_cell_data.append(
-            {
-                "x": cell["MarkerX"],
-                "y": cell["MarkerY"],
-                "z": cell["MarkerZ"],
-            }
+            {"x": cell["MarkerX"], "y": cell["MarkerY"], "z": cell["MarkerZ"],}
         )
 
     return new_cell_data

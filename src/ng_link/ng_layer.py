@@ -122,9 +122,7 @@ def generate_precomputed_cells(cells, path, res):
         "annotation_type": "point",
         "properties": [],
         "relationships": [],
-        "by_id": {
-            "key": "by_id",
-        },
+        "by_id": {"key": "by_id",},
         "spatial": [
             {
                 "key": "spatial0",

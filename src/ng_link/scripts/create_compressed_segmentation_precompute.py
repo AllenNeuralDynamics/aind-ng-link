@@ -288,11 +288,11 @@ class ng_compressed_segmentation:
             n_data = n_data_bytes // 4
 
             data_offset = running_offset
-            assert data_offset < 2**32
+            assert data_offset < 2 ** 32
             running_offset += n_data
 
             lookup_offset = running_offset
-            assert lookup_offset < 2**24
+            assert lookup_offset < 2 ** 24
             running_offset += n_lookup
 
             this_header = b""
@@ -433,7 +433,7 @@ class ng_compressed_segmentation:
         assert n_total_bits % 32 == 0
 
         bit_stream = np.zeros(n_total_bits, dtype=bool)
-        bit_masks = np.array([2**ii for ii in range(n_bits)]).astype(int)
+        bit_masks = np.array([2 ** ii for ii in range(n_bits)]).astype(int)
         block = np.array([encoder_dict[val] for val in block.flatten("F")])
 
         for i_bit in range(n_bits):
@@ -513,7 +513,7 @@ class ng_compressed_segmentation:
         number of bits used to encode each value
         """
         max_val = data.max()
-        if data.max() >= 2**32:
+        if data.max() >= 2 ** 32:
             raise RuntimeError(f"max_val {max_val} >= 2**32")
 
         unq_values = np.unique(data).astype(np.uint32)
@@ -597,11 +597,7 @@ def main(params: dict) -> None:
     ng_compressed.initialize_dask()
 
     # start client
-    cluster = LocalCluster(
-        n_workers=16,
-        processes=True,
-        threads_per_worker=1,
-    )
+    cluster = LocalCluster(n_workers=16, processes=True, threads_per_worker=1,)
 
     client = Client(cluster)
 

@@ -1,11 +1,12 @@
 """
 Utilities for nueroglancer links.
 """
+import pathlib
 import re
 from collections import defaultdict
-import pathlib
-import numpy as np
+
 import boto3
+import numpy as np
 
 
 def calculate_net_transforms(
