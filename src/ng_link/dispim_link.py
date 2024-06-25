@@ -5,7 +5,6 @@ import pathlib
 
 import link_utils
 import numpy as np
-from numpy.typing import ArrayLike
 from ng_state import NgState
 from parsers import XmlParser
 from utils import transfer
@@ -90,7 +89,7 @@ def generate_dispim_link(
         base_channel_xml_path
     )
     intertile_transforms: Dict[
-        int, ArrayLike
+        int, np.ndarray
     ] = link_utils.calculate_net_transforms(tile_transforms)
     base_channel: int = link_utils.extract_channel_from_tile_path(
         tile_paths[0]
