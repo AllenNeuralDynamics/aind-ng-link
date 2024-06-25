@@ -1,14 +1,15 @@
 import argparse
 import json
-from typing import Optional, List, Dict, Any
+from typing import Any, Dict, List, Optional
 
 import boto3
 
 from ng_link.utils.utils import create_s3_client, list_folders_s3, save_to_csv
 
 
-def read_process_output(s3_client: boto3.client, bucket_name: str,
-                        folder_name: str) -> Optional[Dict[str, Any]]:
+def read_process_output(
+    s3_client: boto3.client, bucket_name: str, folder_name: str
+) -> Optional[Dict[str, Any]]:
     """
     Read the process output JSON file from a specific folder in an S3 bucket.
 
@@ -29,7 +30,7 @@ def read_process_output(s3_client: boto3.client, bucket_name: str,
     file_key = f"{folder_name}/process_output.json"
     try:
         file_obj = s3_client.get_object(Bucket=bucket_name, Key=file_key)
-        file_content = file_obj['Body'].read().decode('utf-8')
+        file_content = file_obj["Body"].read().decode("utf-8")
         return json.loads(file_content)
     except s3_client.exceptions.NoSuchKey:
         print(f"File not found: {file_key}")
@@ -38,8 +39,9 @@ def read_process_output(s3_client: boto3.client, bucket_name: str,
         return None
 
 
-def extract_ng_links(folders: List[str], s3_client: boto3.client,
-                     bucket_name: str) -> List[Dict[str, str]]:
+def extract_ng_links(
+    folders: List[str], s3_client: boto3.client, bucket_name: str
+) -> List[Dict[str, str]]:
     """
     Extract 'ng_link' values from the process output JSON files in the
     specified folders.
@@ -63,9 +65,9 @@ def extract_ng_links(folders: List[str], s3_client: boto3.client,
     for folder in folders:
         json_content = read_process_output(s3_client, bucket_name, folder)
         if json_content:
-            ng_link = json_content.get('ng_link')
+            ng_link = json_content.get("ng_link")
             if ng_link:
-                results.append({'Dataset Name': folder, 'ng_link': ng_link})
+                results.append({"Dataset Name": folder, "ng_link": ng_link})
     return results
 
 
@@ -79,13 +81,26 @@ def parse_arguments() -> argparse.Namespace:
         The parsed arguments.
     """
     parser = argparse.ArgumentParser(
-        description="Extract 'ng_link' values from S3 and save to CSV.")
-    parser.add_argument('--bucket_name', type=str, required=True,
-                        help="The name of the S3 bucket.")
-    parser.add_argument('--prefix', type=str, required=True,
-                        help="The prefix to filter folders.")
-    parser.add_argument('--file_path', type=str, required=True,
-                        help="The file path for the CSV file.")
+        description="Extract 'ng_link' values from S3 and save to CSV."
+    )
+    parser.add_argument(
+        "--bucket_name",
+        type=str,
+        required=True,
+        help="The name of the S3 bucket.",
+    )
+    parser.add_argument(
+        "--prefix",
+        type=str,
+        required=True,
+        help="The prefix to filter folders.",
+    )
+    parser.add_argument(
+        "--file_path",
+        type=str,
+        required=True,
+        help="The file path for the CSV file.",
+    )
     return parser.parse_args()
 
 

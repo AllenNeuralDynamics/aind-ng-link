@@ -2,9 +2,9 @@
 Library for generating raw link for visualizing tiles in nominal position.
 """
 import numpy as np
+from parsers import XmlParser
 
 from ng_link import NgState, link_utils
-from parsers import XmlParser
 
 
 def generate_raw_link(
@@ -84,11 +84,7 @@ def generate_raw_link(
             "shaderControls": {
                 "normalized": {"range": [0, max_dr]}
             },  # Optional  # Exaspim has low HDR
-            "shader": {
-                "color": hex_str,
-                "emitter": "RGB",
-                "vec": "vec3",
-            },
+            "shader": {"color": hex_str, "emitter": "RGB", "vec": "vec3",},
             "visible": True,  # Optional
             "opacity": opacity,
             "name": f"CH_{channel}",

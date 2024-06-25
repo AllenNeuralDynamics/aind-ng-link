@@ -72,7 +72,7 @@ class OmeZarrParser:
 
     @staticmethod
     def extract_info(
-            s3_path: str,
+        s3_path: str,
     ) -> Tuple[tuple, Dict[int, str], Dict[int, np.ndarray]]:
         """
         Extracts voxel sizes, tile paths, and tile offsets from a given
@@ -216,10 +216,9 @@ class XmlParser:
             data: OrderedDict = xmltodict.parse(file.read())
 
         for id, zgroup in enumerate(
-                data["SpimData"]["SequenceDescription"]["ImageLoader"][
-                    "zgroups"][
-                    "zgroup"
-                ]
+            data["SpimData"]["SequenceDescription"]["ImageLoader"]["zgroups"][
+                "zgroup"
+            ]
         ):
             view_paths[int(id)] = zgroup["path"]
 
@@ -287,7 +286,7 @@ class XmlParser:
 
     @staticmethod
     def extract_info(
-            xml_path: str,
+        xml_path: str,
     ) -> Tuple[tuple, Dict[int, str], Dict[int, np.ndarray]]:
         """
         Extracts voxel sizes, tile paths, and tile transforms from a given

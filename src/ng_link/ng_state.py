@@ -2,6 +2,7 @@
 Class to represent a configuration state to visualize data in neuroglancer
 """
 import re
+from itertools import combinations
 from pathlib import Path
 from typing import List, Optional, Union
 
@@ -328,6 +329,217 @@ class NgState:
             elif key == "showScaleBar":
                 self.show_scale_bar = val
 
+            elif key == "title":
+                self.title = val
+
+            elif key == "crossSectionOrientation":
+                self.cross_section_orientation = val
+
+            elif key == "crossSectionScale":
+                self.cross_section_scale = val
+
+            elif key == "projectionScale":
+                self.projection_scale = val
+
+            elif key == "layout":
+                self.layout = val
+
+            elif key == "position":
+                self.position = val
+
+    @property
+    def title(self) -> str:
+        """
+        Getter of the title property
+
+        Returns
+        ------------------------
+        str
+            String value of the title.
+        """
+        return self.__state["title"]
+
+    @title.setter
+    def title(self, new_title: str) -> None:
+        """
+        Sets the title parameter in neuroglancer link.
+
+        Parameters
+        ------------------------
+        new_title: str
+            String that will appear in the browser tab title.
+
+        Raises
+        ------------------------
+        ValueError:
+            If the parameter is not an string.
+        """
+        self.__state["title"] = str(new_title)
+
+    @property
+    def cross_section_scale(self) -> float:
+        """
+        Getter of the cross_section_scale property
+
+        Returns
+        ------------------------
+        float
+            Value of the cross_section_scale.
+        """
+        return self.__state["crossSectionScale"]
+
+    @cross_section_scale.setter
+    def cross_section_scale(self, new_cross_section_scale: float) -> None:
+        """
+        Sets the cross_section_scale parameter in neuroglancer link.
+
+        Parameters
+        ------------------------
+        new_cross_section_scale: float
+            Cross section scale value for the neuroglancer state.
+
+        Raises
+        ------------------------
+        ValueError:
+            If the parameter is not an float.
+        """
+        self.__state["crossSectionScale"] = float(new_cross_section_scale)
+
+    @property
+    def projection_scale(self) -> float:
+        """
+        Getter of the projection_scale property
+
+        Returns
+        ------------------------
+        float
+            Value of the projection_scale.
+        """
+        return self.__state["projectionScale"]
+
+    @projection_scale.setter
+    def projection_scale(self, new_scale: float) -> None:
+        """
+        Sets the projection_scale parameter in neuroglancer link.
+
+        Parameters
+        ------------------------
+        new_scale: float
+            Projection scale value for the neuroglancer state.
+
+        Raises
+        ------------------------
+        ValueError:
+            If the parameter is not an float.
+        """
+        self.__state["projectionScale"] = float(new_scale)
+
+    @property
+    def cross_section_orientation(self) -> List[float]:
+        """
+        Getter of the cross_section_orientation property
+
+        Returns
+        ------------------------
+        List[float]
+            List of values to set the cross section orientation
+        """
+        return self.__state["crossSectionOrientation"]
+
+    @cross_section_orientation.setter
+    def cross_section_orientation(self, new_orientation: List[float]) -> None:
+        """
+        Sets the cross_section_orientation parameter in neuroglancer link.
+
+        Parameters
+        ------------------------
+        new_orientation: List[float]
+            Cross section orientation values for the neuroglancer state.
+
+        Raises
+        ------------------------
+        ValueError:
+            If the list contents are not float.
+        """
+        new_orientation = [float(i) for i in new_orientation]
+        self.__state["crossSectionOrientation"] = new_orientation
+
+    @property
+    def layout(self) -> str:
+        """
+        Getter of the layout property.
+        This specifies panel layout in neuroglancer, such as '4panel',
+        'xz', 'zx', etc.
+
+        Returns
+        ------------------------
+        str
+            Viewer panel layout.
+        """
+        return self.__state["layout"]
+
+    @layout.setter
+    def layout(self, new_layout: str) -> None:
+        """
+        Sets the layout parameter in neuroglancer link.
+
+        Parameters
+        ------------------------
+        new_layout: str
+            Neuroglancer viewer panels layout.
+            Must be one of:
+             - 4panel
+             - 3d
+             - xy, yx, xz, etc.
+
+        Raises
+        ------------------------
+        ValueError:
+            If the string is not one of the defined choices
+        """
+        available_layouts = [
+            k[0] + k[1] for k in combinations(["x", "y", "z"], 2)
+        ]
+        available_layouts += [i[::-1] for i in available_layouts]
+        available_layouts += ["3d", "4panel"]
+
+        if new_layout not in available_layouts:
+            raise ValueError(f"Viewer layout {new_layout} is not valid")
+        else:
+            self.__state["layout"] = new_layout
+
+    @property
+    def position(self) -> List[float]:
+        """
+        Getter of the position property
+
+        Returns
+        ------------------------
+        List[float]
+            List of values of the position
+        """
+        return self.__state["position"]
+
+    @position.setter
+    def position(self, new_position: List[float]):
+        """
+        Sets the viewer's center position.
+
+        Parameters
+        ------------------------
+        new_position: List[float]
+            List of coordinates to center on.
+            If the list is shorter than the number of axes, the viewer 
+            will be positioned at the center of the unset axes.
+
+        Raises
+        ------------------------
+        ValueError:
+            If the list contents are not float.
+        """
+        new_position = [float(i) for i in new_position]
+        self.__state["position"] = new_position
+
     @property
     def show_axis_lines(self) -> bool:
         """
@@ -452,11 +664,7 @@ def get_points_from_xml(path: PathLike, encoding: str = "utf-8") -> List[dict]:
     new_cell_data = []
     for cell in cell_data:
         new_cell_data.append(
-            {
-                "x": cell["MarkerX"],
-                "y": cell["MarkerY"],
-                "z": cell["MarkerZ"],
-            }
+            {"x": cell["MarkerX"], "y": cell["MarkerY"], "z": cell["MarkerZ"],}
         )
 
     return new_cell_data
