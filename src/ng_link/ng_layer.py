@@ -364,16 +364,31 @@ class SegmentationLayer:
         """
 
         actual_state = self.__layer_state
-
-        if "precomputed://" in source:
+        
+        if isinstance(source, str) and 'precomputed://' in source:
             write_path = Path(source.replace("precomputed://", ""))
             s3_path = self.__set_s3_path(str(write_path))
 
             actual_state["source"] = f"precomputed://{s3_path}"
+            
+            return actual_state
+
+        elif isinstance(source, dict):
+            layer_dict = {}
+            for k, v in source.items():
+                if k == "url":
+                    write_path = Path(v.replace("precomputed://", ""))
+                    s3_path = self.__set_s3_path(str(write_path))
+                    
+                    layer_dict[k] = s3_path
+                elif k == "transform":
+                    layer_dict[k] = v
+ 
+            actual_state["source"] = layer_dict
 
         else:
             raise NotImplementedError("This option has not been implemented")
-
+            
         return actual_state
 
     def set_tool(self, tool_name: str) -> dict:
